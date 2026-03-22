@@ -1,0 +1,203 @@
+---
+title: "Fitting Evidence Accumulation Models with the bmm R Package: A Tutorial"
+shorttitle: "Evidence Accumulation Models with bmm"
+author:
+  - name: Gidon T. Frischkorn
+    orcid: 0000-0002-5055-9764
+    email: gidon.frischkorn@psychologie.uzh.ch
+    corresponding: true
+    affiliations:
+      - name: University of Zurich
+        department: Department of Psychology
+author-note:
+  disclosures:
+    study-registration: "This study was not preregistered."
+    data-sharing: "Data, analysis code, and companion R scripts for all tutorials are available on [OSF](https://osf.io/XXXXX/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-eam-bmm)."
+    conflict-of-interest: "The authors declare no conflicts of interest."
+    financial-support: "This research was supported by a grant from the Swiss National Science Foundation (SNSF) awarded to Gidon T. Frischkorn (Grant No. XXXXX)."
+    authorship-agreements:
+      "Gidon T. Frischkorn: Conceptualization, Methodology, Software, Formal Analysis, Visualization, Writing -- Original Draft."
+format:
+  apaquarto-docx: default
+  apaquarto-pdf:
+    keep-tex: true
+floatsintext: true
+output-dir: "."
+bibliography: references.bib
+abstract:
+  "Evidence accumulation models (EAMs) decompose response time and accuracy data from speeded decision-making tasks into latent cognitive parameters, including the rate of evidence accumulation, response caution, and non-decision time. This tutorial introduces three EAM implementations available in the bmm R package — the EZ-Diffusion Model (EZDM), the Censored-Shifted Wald Model (CSWALD), and the Diffusion Decision Model (DDM) — and demonstrates how to fit them to empirical data using a unified Bayesian hierarchical framework. We first cover data preprocessing, including contaminant detection and summary statistic computation, using bmm's dedicated helper functions. Four tutorials then build progressively: Tutorials 1 and 2 demonstrate the EZDM with three and four parameters using aggregated summary statistics. Tutorial 3 transitions to trial-level modeling with the CSWALD in both simple (censored) and competing-risks versions. Tutorial 4 fits the full DDM using the Wiener first-passage time likelihood and compares estimates across all three model families. Complete R scripts accompany each tutorial. After completing the tutorials, readers will be able to select an appropriate EAM for their data, fit it using bmm, and evaluate and interpret the results."
+keywords:
+  - evidence accumulation models
+  - diffusion model
+  - reaction time
+  - Bayesian estimation
+  - cognitive modeling
+execute:
+  echo: true
+  eval: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+#| eval: true
+pacman::p_load(here, bmm, brms, tidyverse, tidybayes, patchwork)
+source(here("functions", "clean_plot.R"))
+```
+
+# Introduction
+
+<!-- (~500 words) What are EAMs, the three-model landscape (EZDM/CSWALD/DDM),
+     the bmm package as unified interface, tutorial overview.
+     Frame two key themes: (1) preprocessing is not optional — contaminants
+     bias parameters; (2) model choice matters — CSWALD as fast DDM proxy.
+     Reference Boag et al. (2025) for comprehensive task design guidance. -->
+
+# Background: Evidence Accumulation Models
+
+<!-- (~1000 words) Brief overview of the diffusion model framework,
+     key parameters (drift, bound, ndt, zr), the relationship between
+     the three model variants. Reference Boag et al. (2025) Table 2
+     for parameter-to-manipulation mappings.
+     Include a figure illustrating the diffusion process.
+     Add a table comparing the three models (data type, parameters,
+     speed, when to use). -->
+
+## The Diffusion Model Framework
+
+## Model Variants in bmm
+
+### EZ-Diffusion Model (EZDM)
+
+### Censored-Shifted Wald Model (CSWALD)
+
+### Diffusion Decision Model (DDM)
+
+## Contaminant Processes in RT Data
+
+<!-- Brief overview of how contaminant processes (fast guesses, attentional
+     lapses, slow outliers) violate EAM assumptions and bias parameter
+     estimates. Reference Boag et al. (2025) "Outliers" section and
+     Ratcliff & Kang (2021). Motivate the preprocessing tutorial. -->
+
+# The Impact of Contaminants on EAM Parameter Estimates
+
+<!-- (~1000 words) Reframed from pure "Data Preprocessing" to a motivating
+     demonstration. Lead with the bias demonstration, then introduce tools. -->
+
+## Demonstrating Contaminant Bias
+
+<!-- Show that fitting EAMs to contaminated data (with known ground truth)
+     produces biased parameter estimates: drift underestimated, var_rt
+     inflated, ndt distorted. Use the simulated data with injected
+     contaminants vs. the clean ground truth. -->
+
+## Identifying Contaminant Responses with `flag_contaminant_rts()`
+
+<!-- Demonstrate the function, visualize flagged trials, show classification
+     accuracy against known contaminant labels. -->
+
+## Computing Summary Statistics with `ezdm_summary_stats()`
+
+<!-- Compare simple, mixture, and robust methods. Show that the mixture
+     method handles contamination without requiring a separate filtering
+     step. -->
+
+## Verifying Bias Reduction
+
+<!-- Re-compute parameter estimates on cleaned data. Side-by-side comparison:
+     contaminated vs. cleaned vs. ground truth. Key figure: parameter bias
+     plot showing bias reduction after preprocessing. -->
+
+# Tutorial 1: EZ-Diffusion Model (3-Parameter)
+
+<!-- (~1500 words) Full worked example using properly cleaned/aggregated
+     data. Model specification with ezdm(), formula with bmf(), prior
+     specification, fitting with bmm(), convergence diagnostics, posterior
+     predictive checks, parameter interpretation, condition effects,
+     hypothesis testing. -->
+
+## Data Preparation
+
+## Model Specification
+
+## Model Fitting
+
+## Model Evaluation
+
+# Tutorial 2: EZ-Diffusion Model (4-Parameter)
+
+<!-- (~800 words) Extending to estimate starting-point bias, separate
+     upper/lower moments, model comparison (3par vs 4par). -->
+
+## Extending the Model with Starting-Point Bias
+
+## Model Comparison
+
+# Tutorial 3: The Censored-Shifted Wald as a Fast DDM Proxy
+
+<!-- (~1200 words) Transition to trial-level modeling. Frame CSWALD as a
+     computationally efficient proxy for the DDM. Introduce simple and
+     crisk versions. Compare parameter estimates against EZDM. -->
+
+## The CSWALD Architecture
+
+<!-- Explain relationship to DDM: single-boundary shifted Wald vs. full
+     Wiener process. Why this is faster. When it is appropriate. -->
+
+## Simple Version: Censoring Approach
+
+## Competing-Risks Version
+
+## Comparing CSWALD vs. EZDM Estimates
+
+<!-- Load EZDM fit from Tutorial 1, compare parameter estimates on same
+     data. Preview the full three-way comparison in Tutorial 4. -->
+
+# Tutorial 4: The Diffusion Decision Model and Cross-Model Comparison
+
+<!-- (~1500 words) Restructured around the central question: how do the
+     three models compare, and when should you use which? -->
+
+## Full DDM Specification and Fitting
+
+## Cross-Model Parameter Recovery
+
+<!-- The key comparison: EZDM, CSWALD, and DDM fitted to the same simulated
+     data with known parameters. Parameter recovery plot (estimated vs. true
+     for each model x parameter). Recovery metrics table (bias, coverage,
+     precision). -->
+
+## Computational Cost Comparison
+
+<!-- Compare fitting times across all three models. Visualize with bar plot.
+     Discuss speed-accuracy tradeoff in model choice. -->
+
+## Real Data Application
+
+<!-- Fit DDM to a real published dataset (e.g., Wagenmakers et al., 2008).
+     Full evaluation workflow: convergence, pp_check, parameter
+     interpretation. -->
+
+# Practical Guidelines
+
+<!-- (~500 words) Formalized decision tree for model selection. Reference
+     Boag et al. (2025) for experimental design recommendations. -->
+
+## When to Use Which Model
+
+<!-- Decision tree / table:
+     EZDM: exploration, aggregated data, many conditions, fastest
+     CSWALD: trial-level, fast proxy, iterative development
+     DDM: gold standard, full RT distribution, final analysis -->
+
+## Recommended Workflow
+
+<!-- 1. EZDM for exploration → 2. CSWALD for development → 3. DDM for final
+     analysis → 4. Compare CSWALD vs DDM as robustness check -->
+
+## Summary of Data Requirements
+
+# References
