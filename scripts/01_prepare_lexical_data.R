@@ -14,6 +14,8 @@
 #'   - data_acc_ezdm:       EZDM 3par summary stats (accuracy-coded)
 #'   - data_resp_ezdm:      EZDM 4par summary stats (response-coded)
 
+pacman::p_load(here, bmm, tidyverse, SimDesign)
+
 # -- Load raw data ------------------------------------------------------------
 data("speed_acc", package = "rtdists")
 
@@ -63,20 +65,8 @@ data_validation <- data_all |>
     flagged_censor = censor
   )
 
-# Confusion matrix: censor (hard bounds) vs mixture model
-cat("\n=== Censor vs Mixture Model Comparison ===\n")
-cat("Both flag:    ",
-    sum(data_validation$flagged_censor & data_validation$flagged_mixture), "\n")
-cat("Censor only:  ",
-    sum(data_validation$flagged_censor & !data_validation$flagged_mixture), "\n")
-cat("Mixture only: ",
-    sum(!data_validation$flagged_censor & data_validation$flagged_mixture), "\n")
-cat("Neither:      ",
-    sum(!data_validation$flagged_censor & !data_validation$flagged_mixture), "\n")
-
 tp <- sum(data_validation$flagged_censor & data_validation$flagged_mixture)
 fn <- sum(data_validation$flagged_censor & !data_validation$flagged_mixture)
-cat("Sensitivity:  ", round(tp / (tp + fn), 3), "\n\n")
 
 rm(data_all, data_validation)
 
@@ -129,7 +119,7 @@ data_acc_ezdm <- data_accuracy |>
 data_resp_ezdm <- data_response |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
-                       method = "mixture", distribution = "exgaussian"),
+                       method = "robust"),
     .by = c(id, condition, stim_cat)
   )
 

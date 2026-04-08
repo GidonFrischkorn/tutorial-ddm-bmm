@@ -94,6 +94,11 @@ fit_ddm_acc <- bmm(
 summary(fit_ddm_acc)
 rhat_acc <- max(brms::rhat(fit_ddm_acc), na.rm = TRUE)
 
+## Posterior predictive check ---------------------------------------------------
+p_pp_acc <- pp_check(fit_ddm_acc, ndraws = 50) + clean_plot()
+ggsave(here("figures", "14_pp_check_acc.pdf"), p_pp_acc,
+       width = 6.5, height = 4, device = "pdf")
+
 
 ###############################################################################!
 # 2) DDM on Response-Coded Data ------------------------------------------------
@@ -129,6 +134,11 @@ fit_ddm_resp <- bmm(
 ## Convergence & estimates -----------------------------------------------------
 summary(fit_ddm_resp)
 rhat_resp <- max(brms::rhat(fit_ddm_resp), na.rm = TRUE)
+
+## Posterior predictive check ---------------------------------------------------
+p_pp_resp <- pp_check(fit_ddm_resp, ndraws = 50) + clean_plot()
+ggsave(here("figures", "14_pp_check_resp.pdf"), p_pp_resp,
+       width = 6.5, height = 4, device = "pdf")
 
 ###############################################################################!
 # 3) EZDM with Same freq Specification ----------------------------------------

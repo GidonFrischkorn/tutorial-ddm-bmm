@@ -1,6 +1,6 @@
-# Fitting Evidence Accumulation Models with the bmm R Package: A Tutorial
+# Estimating Diffusion Model Parameters with the bmm R Package: A Tutorial
 
-Companion repository for the tutorial paper on fitting evidence accumulation models (EAMs) using the [bmm](https://venpopov.github.io/bmm/) R package. The paper demonstrates three EAM implementations — EZ-Diffusion Model (EZDM), Censored-Shifted Wald Model (CSWALD), and Diffusion Decision Model (DDM) — with progressively complex tutorials.
+Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters using the [bmm](https://venpopov.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — with progressively complex tutorials.
 
 ## Repository Structure
 
@@ -10,16 +10,16 @@ This GitHub repository contains the source code and data needed to reproduce all
 
 ```text
 ├── manuscript/          Quarto manuscript source (.qmd) and references
-│   ├── tutorial-eam-bmm.qmd
+│   ├── tutorial-ddm-bmm.qmd
 │   └── references.bib
 │
 ├── scripts/             Standalone R scripts for each tutorial
 │   ├── prepare_simulated_data.R              Generate simulated datasets
 │   ├── tutorial0_data_preprocessing.R        Data cleaning and summary stats
-│   ├── tutorial1_ezdm_3par.R                 EZDM 3-parameter version
-│   ├── tutorial2_ezdm_4par.R                 EZDM 4-parameter + model comparison
-│   ├── tutorial3_cswald.R                    CSWALD simple + competing risks
-│   ├── tutorial4_ddm.R                       Full DDM + cross-model comparison
+│   ├── tutorial1_ezdm_3par.R                 EZ-Diffusion 3-parameter version
+│   ├── tutorial2_ezdm_4par.R                 EZ-Diffusion 4-parameter + model comparison
+│   ├── tutorial3_cswald.R                    Censored-Shifted Wald simple + competing risks
+│   ├── tutorial4_ddm.R                       Full DDM + cross-approach comparison
 │   └── 00_download_osf.R                     Download fitted models from OSF
 │
 ├── data/                Simulated and real datasets
@@ -42,15 +42,15 @@ To reproduce locally, run the scripts in `scripts/` — fitted models will be ca
 
 ## Tutorials
 
-**Tutorial 0 — The Impact of Contaminants** (`tutorial0_data_preprocessing.R`): Demonstrates empirically how contaminant RTs (fast guesses, slow outliers) bias EAM parameter estimates using simulated data with known ground truth. Introduces `flag_contaminant_rts()` for contaminant detection and `ezdm_summary_stats()` for computing summary statistics with simple, mixture, and robust methods. Verifies that preprocessing restores accurate parameter recovery.
+**Tutorial 0 — The Impact of Contaminants** (`tutorial0_data_preprocessing.R`): Demonstrates empirically how contaminant RTs (fast guesses, slow outliers) bias DDM parameter estimates using simulated data with known ground truth. Introduces `flag_contaminant_rts()` for contaminant detection and `ezdm_summary_stats()` for computing summary statistics with simple, mixture, and robust methods. Verifies that preprocessing restores accurate parameter recovery.
 
-**Tutorial 1 — EZDM (3-Parameter)** (`tutorial1_ezdm_3par.R`): Introduces the complete EAM workflow using the EZ-Diffusion Model with three parameters (drift, bound, ndt) on properly cleaned data. Covers model specification with `ezdm()`, fitting with `bmm()`, convergence diagnostics, posterior predictive checks, and hypothesis testing.
+**Tutorial 1 — EZ-Diffusion Model (3-Parameter)** (`tutorial1_ezdm_3par.R`): Introduces the complete DDM estimation workflow using the EZ-Diffusion Model with three parameters (drift, bound, ndt) on properly cleaned data. Covers model specification with `ezdm()`, fitting with `bmm()`, convergence diagnostics, posterior predictive checks, and hypothesis testing.
 
-**Tutorial 2 — EZDM (4-Parameter)** (`tutorial2_ezdm_4par.R`): Extends the EZDM by adding the relative starting point (`zr`) parameter. Demonstrates how response biases can be estimated and compares the 3-parameter and 4-parameter versions using bridge sampling.
+**Tutorial 2 — EZ-Diffusion Model (4-Parameter)** (`tutorial2_ezdm_4par.R`): Extends the EZ-Diffusion Model by adding the relative starting point (`zr`) parameter. Demonstrates how response biases can be estimated and compares the 3-parameter and 4-parameter versions.
 
-**Tutorial 3 — CSWALD as a Fast DDM Proxy** (`tutorial3_cswald.R`): Transitions to trial-level modeling with the Censored-Shifted Wald Model, positioned as a computationally efficient proxy for the DDM. Demonstrates both the simple version (censored approach for low-error tasks) and the competing-risks version. Compares parameter estimates against EZDM results from Tutorial 1.
+**Tutorial 3 — Censored-Shifted Wald** (`tutorial3_cswald.R`): Transitions to trial-level modeling with the Censored-Shifted Wald, a computationally efficient trial-level approach for estimating DDM parameters. Demonstrates both the simple version (censored approach for low-error tasks) and the competing-risks version. Compares parameter estimates against the EZ-Diffusion results from Tutorial 1.
 
-**Tutorial 4 — DDM and Cross-Model Comparison** (`tutorial4_ddm.R`): Fits the full DDM using the Wiener first-passage time likelihood and systematically compares parameter recovery across all three model families (EZDM, CSWALD, DDM) against known ground truth. Includes a computational cost comparison, a real data application, and a practical decision tree for model selection.
+**Tutorial 4 — Full DDM Likelihood Estimation** (`tutorial4_ddm.R`): Fits the full DDM using the Wiener first-passage time likelihood and systematically compares parameter recovery across all three estimation approaches. Includes a computational cost comparison, a real data application, and a practical decision tree for approach selection.
 
 ## Getting Started
 
@@ -63,7 +63,7 @@ pacman::p_load(here, bmm, brms, cmdstanr, tidyverse, tidybayes, patchwork)
 
 [cmdstanr](https://mc-stan.org/cmdstanr/) requires a working CmdStan installation. See `cmdstanr::install_cmdstan()`.
 
-Open the RStudio project (`tutorial-eam-bmm.Rproj`). To use pre-fitted models without re-running the analyses, first run `scripts/00_download_osf.R` to download cached model objects from OSF into `output/`. The tutorial scripts use the `file` argument in `bmm()`, so they will automatically load cached fits when available.
+Open the RStudio project. To use pre-fitted models without re-running the analyses, first run `scripts/00_download_osf.R` to download cached model objects from OSF into `output/`. The tutorial scripts use the `file` argument in `bmm()`, so they will automatically load cached fits when available.
 
 ## References
 

@@ -91,7 +91,12 @@ summary(fit_resp_ezdm)
 rhat_vals <- brms::rhat(fit_resp_ezdm)
 cat("Max Rhat:", max(rhat_vals, na.rm = TRUE), "\n")
 
-## 3.2) Parameter estimates ----------------------------------------------------
+## 3.2) Posterior predictive check ---------------------------------------------
+p_pp <- pp_check(fit_resp_ezdm, ndraws = 50)
+ggsave(here("figures", "12_pp_check.pdf"), p_pp,
+       width = 6.5, height = 4, device = "pdf")
+
+## 3.3) Parameter estimates ----------------------------------------------------
 fixef_est <- fixef(fit_resp_ezdm)
 print(round(fixef_est, 3))
 

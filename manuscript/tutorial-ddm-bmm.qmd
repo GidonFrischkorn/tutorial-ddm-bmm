@@ -18,14 +18,14 @@ author-note:
     authorship-agreements:
       "Gidon T. Frischkorn: Conceptualization, Methodology, Software, Formal Analysis, Visualization, Writing -- Original Draft."
 format:
+  apaquarto-docx:
+    toc: false
+    floatsintext: true
   apaquarto-pdf:
     keep-tex: true
     floatsintext: true
     numbered-lines: true
     documentmode: man
-  apaquarto-docx:
-    toc: false
-    floatsintext: true
 floatsintext: true
 output-dir: "."
 bibliography: references.bib

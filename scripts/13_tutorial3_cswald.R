@@ -66,6 +66,11 @@ fit_cswald_simple <- bmm(
 summary(fit_cswald_simple)
 rhat_simple <- max(brms::rhat(fit_cswald_simple), na.rm = TRUE)
 
+## Posterior predictive check ---------------------------------------------------
+p_pp_simple <- pp_check(fit_cswald_simple, ndraws = 50) + clean_plot()
+ggsave(here("figures", "13_pp_check_simple.pdf"), p_pp_simple,
+       width = 6.5, height = 4, device = "pdf")
+
 
 ###############################################################################!
 # 2) CSWALD Competing-Risks: Response-Coded Analysis ---------------------------
@@ -101,3 +106,8 @@ fit_cswald_crisk <- bmm(
 ## Convergence & estimates -----------------------------------------------------
 summary(fit_cswald_crisk)
 rhat_crisk <- max(brms::rhat(fit_cswald_crisk), na.rm = TRUE)
+
+## Posterior predictive check ---------------------------------------------------
+p_pp_crisk <- pp_check(fit_cswald_crisk, ndraws = 50) + clean_plot()
+ggsave(here("figures", "13_pp_check_crisk.pdf"), p_pp_crisk,
+       width = 6.5, height = 4, device = "pdf")
