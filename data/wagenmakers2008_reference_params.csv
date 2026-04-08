@@ -1,0 +1,14 @@
+parameter,level,condition,value_s01,value_s1,varies_by,bmm_name,link
+bound,overall,accuracy,0.159,1.59,condition,bound,log
+bound,overall,speed,0.084,0.84,condition,bound,log
+zr,overall,accuracy,0.497,0.497,condition,zr,logit
+zr,overall,speed,0.476,0.476,condition,zr,logit
+ndt,overall,both,0.408,0.408,constant,ndt,log
+drift,high,both,0.452,4.52,frequency,drift,identity
+drift,low,both,0.275,2.75,frequency,drift,identity
+drift,very_low,both,0.180,1.80,frequency,drift,identity
+drift,nonword,both,-0.264,-2.64,frequency,drift,identity
+drift,word_avg,both,0.302,3.02,stim_cat_collapsed,drift,identity
+sv,overall,both,0.116,1.16,constant,not_estimated,na
+sz,overall,both,0.048,0.48,constant,not_estimated,na
+st,overall,both,0.144,0.144,constant,not_estimated,na
