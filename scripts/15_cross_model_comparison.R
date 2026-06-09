@@ -270,10 +270,10 @@ ggsave(here("figures", "15_cross_model_response.pdf"),
 ###############################################################################!
 
 cat("\n=== Computational Cost Summary ===\n")
-cat("These times are approximate and depend on hardware:\n")
-cat("  EZDM 3par (accuracy):    ~10 seconds\n")
-cat("  EZDM 4par (response):    ~15 seconds\n")
-cat("  CSWALD simple (accuracy): ~15 minutes\n")
-cat("  CSWALD crisk (response):  ~30 minutes\n")
-cat("  DDM accuracy:             ~60 minutes\n")
-cat("  DDM response:             ~90 minutes\n")
+cat("These times are approximate wall-clock (5 chains in parallel) and depend on hardware:\n")
+cat("  EZDM 3par (accuracy):     ~30 seconds\n")
+cat("  EZDM 4par (response):     ~45 seconds\n")
+cat("  CSWALD simple (accuracy): ~4-5 hours\n")
+cat("  CSWALD crisk (response):  ~1 hour\n")
+cat("  DDM accuracy:             ~18-20 hours\n")
+cat("  DDM response:             ~17-18 hours\n")

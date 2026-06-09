@@ -121,12 +121,12 @@ fe_t3s <- fixef(fit_cswald_simple)
 fe_t3c <- fixef(fit_cswald_resp)
 t3_rhat_simple <- max(brms::rhat(fit_cswald_simple), na.rm = TRUE)
 t3_rhat_crisk  <- max(brms::rhat(fit_cswald_resp), na.rm = TRUE)
-t3s_drift_word    <- round(fe_t3s["drift_stim_catword", "Estimate"], 2)
-t3s_drift_nonword <- round(fe_t3s["drift_stim_catnonword", "Estimate"], 2)
-t3s_bound_acc  <- round(exp(fe_t3s["bound_conditionaccuracy", "Estimate"]), 2)
-t3s_bound_speed <- round(exp(fe_t3s["bound_conditionspeed", "Estimate"]), 2)
-t3c_zr_speed <- round(plogis(fe_t3c["zr_conditionspeed", "Estimate"]), 3)
-t3c_zr_acc   <- round(plogis(fe_t3c["zr_conditionaccuracy", "Estimate"]), 3)
+t3s_drift_word    <- fmt_est(fe_t3s["drift_stim_catword", ])
+t3s_drift_nonword <- fmt_est(fe_t3s["drift_stim_catnonword", ])
+t3s_bound_acc   <- fmt_est(exp(fe_t3s["bound_conditionaccuracy", c("Estimate", "Q2.5", "Q97.5")]))
+t3s_bound_speed <- fmt_est(exp(fe_t3s["bound_conditionspeed", c("Estimate", "Q2.5", "Q97.5")]))
+t3c_zr_speed <- fmt_est(plogis(fe_t3c["zr_conditionspeed", c("Estimate", "Q2.5", "Q97.5")]), 3)
+t3c_zr_acc   <- fmt_est(plogis(fe_t3c["zr_conditionaccuracy", c("Estimate", "Q2.5", "Q97.5")]), 3)
 # Tutorial 3: Hypothesis tests
 t3_hyp_drift <- hypothesis(fit_cswald_simple, "drift_stim_catword > drift_stim_catnonword")
 t3_bf_drift  <- t3_hyp_drift$hypothesis$Evid.Ratio
@@ -142,11 +142,28 @@ t4_drift_hf  <- round(fe_t4a["drift_freqhigh", "Estimate"], 2)
 t4_drift_lf  <- round(fe_t4a["drift_freqlow", "Estimate"], 2)
 t4_drift_vlf <- round(fe_t4a["drift_freqvery_low", "Estimate"], 2)
 t4_drift_nw  <- round(fe_t4a["drift_freqnonword", "Estimate"], 2)
-t4_bound_acc  <- round(exp(fe_t4a["bound_conditionaccuracy", "Estimate"]), 2)
-t4_bound_speed <- round(exp(fe_t4a["bound_conditionspeed", "Estimate"]), 2)
-t4_ndt <- round(exp(fe_t4a["ndt_Intercept", "Estimate"]), 3)
-t4_zr_speed <- round(plogis(fe_t4r["zr_conditionspeed", "Estimate"]), 3)
-t4_zr_acc   <- round(plogis(fe_t4r["zr_conditionaccuracy", "Estimate"]), 3)
+t4_bound_acc   <- fmt_est(exp(fe_t4a["bound_conditionaccuracy", c("Estimate", "Q2.5", "Q97.5")]))
+t4_bound_speed <- fmt_est(exp(fe_t4a["bound_conditionspeed", c("Estimate", "Q2.5", "Q97.5")]))
+t4_ndt <- fmt_est(exp(fe_t4a["ndt_Intercept", c("Estimate", "Q2.5", "Q97.5")]), 3)
+t4_zr_speed <- fmt_est(plogis(fe_t4r["zr_conditionspeed", c("Estimate", "Q2.5", "Q97.5")]), 3)
+t4_zr_acc   <- fmt_est(plogis(fe_t4r["zr_conditionaccuracy", c("Estimate", "Q2.5", "Q97.5")]), 3)
+
+# Tutorial 4: Hypothesis tests (parallel to Tutorials 1-3)
+t4_hyp_bound <- hypothesis(fit_ddm_acc, "bound_conditionaccuracy > bound_conditionspeed")
+t4_bf_bound  <- t4_hyp_bound$hypothesis$Evid.Ratio
+t4_hyp_drift <- hypothesis(fit_ddm_acc, "drift_freqhigh > drift_freqvery_low")
+t4_bf_drift  <- t4_hyp_drift$hypothesis$Evid.Ratio
+
+# Tutorial 4: EZ-Diffusion (freq) vs full DDM divergences
+fe_t4f   <- fixef(fit_acc_ezdm_freq)
+t4_ndt_ez  <- fmt_est(exp(fe_t4f["ndt_Intercept", c("Estimate", "Q2.5", "Q97.5")]), 3)
+t4_ndt_ddm <- fmt_est(exp(fe_t4a["ndt_Intercept", c("Estimate", "Q2.5", "Q97.5")]), 3)
+.drift_lvls   <- c("freqhigh", "freqlow", "freqvery_low", "freqnonword")
+.drift_ratios <- fe_t4f[paste0("drift_", .drift_lvls), "Estimate"] /
+                 fe_t4a[paste0("drift_", .drift_lvls), "Estimate"]
+t4_drift_pct_mean <- round((mean(.drift_ratios) - 1) * 100)
+t4_drift_pct_lo   <- round((min(.drift_ratios) - 1) * 100)
+t4_drift_pct_hi   <- round((max(.drift_ratios) - 1) * 100)
 
 # Appendix: Subject-level recovery correlations
 extract_subject_params <- function(fit, model_name, n_subjects = 50) {
@@ -190,9 +207,9 @@ recovery_r_median <- round(median(recovery_cors$r), 2)
 
 # Introduction
 
-Consider two participants performing a speeded choice task, for example deciding if a digit is odd or even as quickly and accuractely as possible. Participant A responds in 550 ms on average with 90% accuracy; Participant B responds in 600 ms with 95% accuracy. Who did better on the task? A traditional analysis might favor A (faster) or B (more accurate), depending which indicator to weigh more strongly, but neither summary statistic alone can determine *why* and *how* these participants differ on the level of the underlying cognitive processes. Participant A may extract evidence faster but set a more liberal decision threshold, while Participant B may extract evidence at the same rate but set a more cautious threshold that trades speed for accuracy. Mean RT and accuracy alone cannot distinguish these accounts — they confound different underlying processes.
+Consider two participants performing a speeded choice task, for example deciding if a digit is odd or even as quickly and accurately as possible. Participant A responds in 550 ms on average with 90% accuracy; Participant B responds in 600 ms with 95% accuracy. Who did better on the task? A traditional analysis might favor A (faster) or B (more accurate), depending which indicator to weigh more strongly, but neither summary statistic alone can determine *why* and *how* these participants differ on the level of the underlying cognitive processes. Participant A may extract evidence faster but set a more liberal decision threshold, while Participant B may extract evidence at the same rate but set a more cautious threshold that trades speed for accuracy. Mean RT and accuracy alone cannot distinguish these accounts — they confound different underlying processes.
 
-Evidence accumulation models (EAMs) resolve this ambiguity. By jointly modeling response times (RTs) and accuracy from speeded decision-making tasks, EAMs decompose observed performance into latent cognitive parameters: the rate of evidence accumulation (drift rate), the amount of evidence required before responding (boundary separation), and the time consumed by non-decisional processes such as stimulus encoding and motor execution (non-decision time). Since their introduction [@ratcliff1978theory], EAMs have become the standard framework for analyzing RT data across perception, memory retrieval, and cognitive control [@ratcliff2008diffusion; @donkin2018response; @evans2019evidence].
+Evidence accumulation models (EAMs) resolve this ambiguity. By jointly modeling response times (RTs) and accuracy from speeded decision-making tasks, EAMs decompose observed performance into latent cognitive parameters: the rate of evidence accumulation (drift), the amount of evidence required before responding (boundary separation), and the time consumed by non-decisional processes such as stimulus encoding and motor execution (non-decision time). Since their introduction [@ratcliff1978theory], EAMs have become the standard framework for analyzing RT data across perception, memory retrieval, and cognitive control [@ratcliff2008diffusion; @donkin2018response; @evans2019evidence].
 
 The EAM family encompasses a range of model architectures. In *race models*, separate accumulators independently accumulate evidence for each response option, with the first to reach threshold determining the response — examples include the Linear Ballistic Accumulator [LBA; @brown2008lba], the lognormal race model [@rouder2015lnr], and the racing diffusion model [@tillman2020racing]. In *competitive models* such as the Leaky Competing Accumulator [LCA; @usher2001lca], accumulators mutually inhibit each other, producing dynamics that can account for contextual effects in multi-alternative choice. These architectures share the same core logic — noisy evidence accumulation toward a decision threshold — but differ in whether accumulation is deterministic or stochastic, whether accumulators interact, and how many response options can be modeled [for reviews, see @ratcliff2004comparison; @forstmann2016review; @boag2025expert]. Among these, the Diffusion Decision Model [DDM; @ratcliff1978theory] is the most widely applied EAM for two-choice tasks, supported by decades of empirical validation across cognitive domains [@ratcliff2008diffusion].
 
@@ -218,7 +235,7 @@ We begin with a data preprocessing section demonstrating how contaminants bias D
 
 To build intuition for what EAMs capture, consider a concrete example. A participant in a lexical decision task sees the letter string CHAIR on screen and must press one of two buttons to indicate "word" or "nonword." Upon stimulus onset, the participant begins extracting evidence — orthographic regularity, phonological plausibility, lexical familiarity — that accumulates noisily over time toward one of two response boundaries. If the accumulated evidence reaches the "word" boundary first, the participant responds "word"; if it reaches the "nonword" boundary, they respond "nonword." The observed RT is the sum of this decision time and non-decisional components (for example, stimulus encoding and motor execution). This example reflects the core logic of the DDM [@ratcliff1978theory; @ratcliff2008diffusion], and it gives rise to four parameters that each capture a distinct aspect of the decision process:
 
-- **Drift Rate** ($\delta$): The mean rate of evidence accumulation, reflecting stimulus quality or strength. Higher drift rates yield faster and more accurate responses.
+- **Drift** ($\delta$): The mean rate of evidence accumulation, reflecting stimulus quality or strength. Higher drift yields faster and more accurate responses.
 - **Boundary Separation** ($\alpha$): The distance between the two response boundaries, capturing *response caution*. Wider boundaries require more evidence, yielding slower but more accurate responses.
 - **Non-decision Time** ($\tau$): The portion of the observed RT not attributable to the decision process, encompassing *stimulus encoding* and *motor execution*.
 - **Relative Starting Point** ($\zeta_r$): The position of the starting point between the two boundaries, expressed as a proportion (0.5 = unbiased). Values deviating from 0.5 indicate an *a priori response bias*.
@@ -233,7 +250,7 @@ knitr::include_graphics(here("figures", "03_diffusion_schematic.pdf"))
 
 These parameters are not merely mathematical abstractions — they make testable predictions about how experimental manipulations should affect behavior. According to the principle of *selective influence*, manipulations designed to affect a specific cognitive process should primarily change the corresponding model parameter while leaving the others relatively unchanged. For example, stimulus quality manipulations (e.g., degradation, word frequency) should affect drift, whereas *response caution* manipulations (e.g., speed–accuracy instructions) should affect bound [@voss2004interpreting; @ratcliff2008diffusion]. This selective influence, consistently demonstrated in previous studies, is a key motivation for using EAMs [see @boag2025expert, Table 2, for a comprehensive overview].
 
-The four-parameter formulation of the DDM described above is sometimes called the *simple* or *pure* DDM. The *full* DDM [@ratcliff2002estimating] adds three trial-to-trial variability parameters: variability in drift rate (to produce slow errors), variability in starting point (to produce fast errors), and variability in ndt (to account for leading-edge variation in RT distributions). These additional parameters increase the model's flexibility but also its complexity and computational cost, while the added parameters are often difficult to recover reliably from data [@vanravenzwaaij2017ez; @boag2025expert]. For many applications — particularly when the goal is to detect condition effects on drift rate or boundary separation rather than to characterize the precise shape of error RT distributions — the simple DDM provides a more parsimonious and statistically powerful alternative [@vanravenzwaaij2017ez]. All three estimation approaches in `bmm` are based on the simple DDM framework.
+The four-parameter formulation of the DDM described above is sometimes called the *simple* or *pure* DDM. The *full* DDM [@ratcliff2002estimating] adds three trial-to-trial variability parameters: variability in drift (to produce slow errors), variability in starting point (to produce fast errors), and variability in ndt (to account for leading-edge variation in RT distributions). These additional parameters increase the model's flexibility but also its complexity and computational cost, while the added parameters are often difficult to recover reliably from data [@vanravenzwaaij2017ez; @boag2025expert]. For many applications — particularly when the goal is to detect condition effects on drift or boundary separation rather than to characterize the precise shape of error RT distributions — the simple DDM provides a more parsimonious and statistically powerful alternative [@vanravenzwaaij2017ez]. All three estimation approaches in `bmm` are based on the simple DDM framework.
 
 ## DDM Estimation Approaches in bmm
 
@@ -248,14 +265,14 @@ The `bmm` package implements three approaches for estimating DDM parameters that
 | Likelihood | Closed-form equations | Shifted Wald | Wiener first-passage time |
 | Min trials/cell | ~30 | ~50 | ~50 |
 | Starting point ($\zeta$) | 4par only | crisk only | Optional |
-| Fitting time | Seconds | Minutes | Hours |
+| Fitting time | Seconds–minutes | ~1–5 hours | ~15–20 hours |
 | Best suited for | Exploration, many conditions | Iterative development | Confirmatory analysis |
 
 : Summary of the three DDM estimation approaches in `bmm`. {#tbl-model-comparison}
 
 ### EZ-Diffusion Model
 
-The EZ-Diffusion Model [`ezdm` in `bmm`; @wagenmakers2007ezdiffusion] was developed to make diffusion model analysis quick and easy by eliminating the need for iterative fitting routines [@wagenmakers2007ezdiffusion]. It provides closed-form expressions that map three summary statistics — mean RT, RT variance, and proportion correct — directly to drift rate, boundary separation, and non-decision time. This simplicity comes at the cost of two assumptions: no trial-to-trial variability in any parameter, and an unbiased starting point ($\zeta = 0.5$). When these assumptions are violated, parameter estimates can be attenuated — particularly drift at high values — but the model remains a surprisingly powerful tool for detecting condition effects, often outperforming the full DDM in statistical power [@vanravenzwaaij2017ez; @ratcliff2008ez; @wagenmakers2008extensions]. Several extensions address specific limitations: *robust-EZ* uses an ex-Gaussian/uniform mixture model to down-weight contaminant RTs before computing summary statistics [@wagenmakers2008extensions]; a four-parameter extension allows to estimate the relative starting point from boundary-specific RT moments, building on generalized expressions for the mean and variance of decision times under the diffusion model with biased starting point [@grasman2009ez; @srivastava2016moments]; Crucially, a recent Bayesian hierarchical formulation casts the EZ-Diffusion equations as a probabilistic proxy model, enabling hierarchical estimation with regression structures on parameters [@chavez2025ez].
+The EZ-Diffusion Model [`ezdm` in `bmm`; @wagenmakers2007ezdiffusion] was developed to make diffusion model analysis quick and easy by eliminating the need for iterative fitting routines [@wagenmakers2007ezdiffusion]. It provides closed-form expressions that map three summary statistics — mean RT, RT variance, and proportion correct — directly to drift, boundary separation, and non-decision time. This simplicity comes at the cost of two assumptions: no trial-to-trial variability in any parameter, and an unbiased starting point ($\zeta = 0.5$). When these assumptions are violated, parameter estimates can be attenuated — particularly drift at high values — but the model remains a surprisingly powerful tool for detecting condition effects, often outperforming the full DDM in statistical power [@vanravenzwaaij2017ez; @ratcliff2008ez; @wagenmakers2008extensions]. Several extensions address specific limitations: *robust-EZ* uses an ex-Gaussian/uniform mixture model to down-weight contaminant RTs before computing summary statistics [@wagenmakers2008extensions]; a four-parameter extension allows to estimate the relative starting point from boundary-specific RT moments, building on generalized expressions for the mean and variance of decision times under the diffusion model with biased starting point [@grasman2009ez; @srivastava2016moments]; Crucially, a recent Bayesian hierarchical formulation casts the EZ-Diffusion equations as a probabilistic proxy model, enabling hierarchical estimation with regression structures on parameters [@chavez2025ez].
 
 ### Censored-Shifted Wald Model
 
@@ -466,9 +483,9 @@ model_acc <- ezdm(
 )
 ```
 
-The formula is specified using `bmf()`, which allows separate regression formulas for each parameter. We include stimulus category as a predictor on drift (to test for evidence quality differences) and emphasis condition as a predictor on bound (to test for response caution differences). Random slopes allow each participant's parameters to vary by condition: `(0 + stim_cat | id)` estimates participant-specific drift rates for words and nonwords, while `(0 + condition | id)` estimates participant-specific boundary settings under speed and accuracy emphasis.
+The formula is specified using `bmf()`, which allows separate regression formulas for each parameter. We include stimulus category as a predictor on drift (to test for evidence quality differences) and emphasis condition as a predictor on bound (to test for response caution differences). Random slopes allow each participant's parameters to vary by condition: `(0 + stim_cat | id)` estimates participant-specific drift for words and nonwords, while `(0 + condition | id)` estimates participant-specific boundary settings under speed and accuracy emphasis.
 
-Each parameter uses a *link function* that determines how the linear predictor maps onto the parameter scale. Drift rate can take any real value — positive when evidence favors the upper boundary, negative when it favors the lower boundary — so it uses an *identity link*, meaning the regression coefficients are directly on the drift rate scale. Boundary separation and non-decision time, by contrast, must be strictly positive (a negative boundary or negative encoding time is meaningless), so they use a *log link*: the regression coefficients are on the log scale and must be exponentiated to obtain the parameter estimate. This is analogous to using a log link in Poisson regression to ensure predicted counts are positive. In practice, this means that when interpreting `fixef()` output, drift coefficients can be read directly, while bound and ndt coefficients require exponentiation (we demonstrate this below).
+Each parameter uses a *link function* that determines how the linear predictor maps onto the parameter scale. Drift can take any real value — positive when evidence favors the upper boundary, negative when it favors the lower boundary — so it uses an *identity link*, meaning the regression coefficients are directly on the drift scale. Boundary separation and non-decision time, by contrast, must be strictly positive (a negative boundary or negative encoding time is meaningless), so they use a *log link*: the regression coefficients are on the log scale and must be exponentiated to obtain the parameter estimate. This is analogous to using a log link in Poisson regression to ensure predicted counts are positive. In practice, this means that when interpreting `fixef()` output, drift coefficients can be read directly, while bound and ndt coefficients require exponentiation (we demonstrate this below).
 
 ```{r}
 #| label: t1-formula
@@ -506,7 +523,7 @@ Fitting completed in approximately 30 seconds with 5 parallel chains. Convergenc
 
 ## Model Evaluation
 
-Before interpreting parameter estimates, we verify model fit via a posterior predictive check, comparing observed data against data simulated from the posterior.
+Before interpreting parameter estimates, we verify model fit via a posterior predictive check (@fig-t1-ppcheck), which overlays response-time distributions simulated from the posterior on the observed distributions; close overlap across both the bulk and the tails indicates that the model reproduces the data it was fit to. One caveat is specific to the EZ-Diffusion Model: because it is fit to three summary statistics per cell rather than to individual RTs, its posterior predictive check can only confirm that those moments — mean RT, RT variance, and accuracy — are recovered, and cannot detect misfit in the finer shape of the RT distribution. The trial-level Censored-Shifted Wald and full DDM, which model individual RTs (including the separate distributions of correct and error responses), yield more diagnostic checks; we return to these in Tutorials 3 and 4.
 
 ```{r}
 #| label: fig-t1-ppcheck
@@ -528,17 +545,17 @@ exp(fixef(fit_acc_ezdm)["bound_conditionspeed", ])
 exp(fixef(fit_acc_ezdm)["bound_conditionaccuracy", ])
 ```
 
-The `fixef()` output shows the population-level regression coefficients. For drift (identity link), the `Estimate` column is directly on the drift rate scale — for instance, a value of 3.5 means a drift rate of 3.5. For bound and ndt (log link), the estimates are on the log scale: the `exp()` transformation converts them to the natural scale. For example, a log-scale bound estimate of 0.4 corresponds to a boundary separation of $e^{0.4} \approx 1.49$.
+The `fixef()` output shows the population-level regression coefficients. For drift (identity link), the `Estimate` column is directly on the drift scale — for instance, a value of 3.5 means a drift of 3.5. For bound and ndt (log link), the estimates are on the log scale: the `exp()` transformation converts them to the natural scale. For example, a log-scale bound estimate of 0.4 corresponds to a boundary separation of $e^{0.4} \approx 1.49$.
 
 ```{r}
 #| label: fig-t1-params
-#| fig-cap: "EZ-Diffusion parameter estimates from the accuracy-coded analysis. Left: Drift estimates by stimulus category — word stimuli produce higher drift rates than nonword stimuli, reflecting stronger lexical evidence. Right: Bound estimates by emphasis condition — speed emphasis produces lower boundary separation, reflecting reduced response caution."
+#| fig-cap: "EZ-Diffusion parameter estimates from the accuracy-coded analysis. Left: Drift estimates by stimulus category — word stimuli produce higher drift than nonword stimuli, reflecting stronger lexical evidence. Right: Bound estimates by emphasis condition — speed emphasis produces lower boundary separation, reflecting reduced response caution."
 #| eval: true
 #| echo: false
 knitr::include_graphics(here("figures", "11_param_estimates.pdf"))
 ```
 
-The results reveal a clear double dissociation consistent with selective influence (@fig-t1-params). Stimulus category selectively influenced drift — word stimuli produced higher drift rates ($\delta$ = `r t1_drift_word`) than nonword stimuli ($\delta$ = `r t1_drift_nonword`), reflecting stronger lexical evidence for real words. Emphasis condition selectively influenced bound — speed emphasis produced lower boundary separation ($\alpha$ = `r t1_bound_speed`) than accuracy emphasis ($\alpha$ = `r t1_bound_acc`), reflecting reduced response caution. Non-decision time was estimated at $\tau$ = `r t1_ndt` seconds. This dissociation demonstrates the core value of EAMs: a traditional analysis comparing mean RTs could not distinguish whether speed-emphasis participants were faster because they processed evidence more efficiently or because they required less evidence. We return to this pattern in Tutorial 4, where we show that the EZ-Diffusion Model produces substantively identical drift-related conclusions to the computationally much more expensive full DDM.
+The results reveal a clear double dissociation consistent with selective influence (@fig-t1-params). Stimulus category selectively influenced drift — word stimuli produced higher drift ($\delta$ = `r t1_drift_word`) than nonword stimuli ($\delta$ = `r t1_drift_nonword`), reflecting stronger lexical evidence for real words. Emphasis condition selectively influenced bound — speed emphasis produced lower boundary separation ($\alpha$ = `r t1_bound_speed`) than accuracy emphasis ($\alpha$ = `r t1_bound_acc`), reflecting reduced response caution. Non-decision time was estimated at $\tau$ = `r t1_ndt` seconds. This dissociation demonstrates the core value of EAMs: a traditional analysis comparing mean RTs could not distinguish whether speed-emphasis participants were faster because they processed evidence more efficiently or because they required less evidence. We return to this pattern in Tutorial 4, where we show that the EZ-Diffusion Model produces substantively identical drift-related conclusions to the computationally much more expensive full DDM.
 
 ## Hypothesis Testing
 
@@ -557,7 +574,7 @@ Both tests provide strong evidence for selective influence. The Savage-Dickey Ba
 
 # Tutorial 2: Estimating Response Bias with the EZ-Diffusion Model (4par)
 
-Tutorial 1 used accuracy coding, where "upper" means correct regardless of stimulus type. But what if we want to know whether participants are biased toward saying "word"? Response bias is a substantively important question in many domains: in lexical decision, word frequency creates an a priori expectation that biases responses toward "word"; in recognition memory, participants may adopt liberal or conservative response criteria; in clinical research, impulsive responding in ADHD may manifest as a shifted starting point rather than a changed drift rate. To estimate such biases, we need *response coding* — where "upper" always means a "word" response — and the 4-parameter EZ-Diffusion Model (`ezdm` 4par), which adds the relative starting point ($\zeta$) as a fourth parameter.^[The companion script `scripts/12_tutorial2_ezdm_4par.R` provides additional code for the simulated 4par validation.]
+Tutorial 1 used accuracy coding, where "upper" means correct regardless of stimulus type. But what if we want to know whether participants are biased toward saying "word"? Response bias is a substantively important question in many domains: in lexical decision, word frequency creates an a priori expectation that biases responses toward "word"; in recognition memory, participants may adopt liberal or conservative response criteria; in clinical research, impulsive responding in ADHD may manifest as a shifted starting point rather than changed drift. To estimate such biases, we need *response coding* — where "upper" always means a "word" response — and the 4-parameter EZ-Diffusion Model (`ezdm` 4par), which adds the relative starting point ($\zeta$) as a fourth parameter.^[The companion script `scripts/12_tutorial2_ezdm_4par.R` provides additional code for the simulated 4par validation.]
 
 ## What Changes
 
@@ -618,7 +635,7 @@ Convergence was adequate (maximum $\hat{R}$ = `r round(t2_rhat, 3)`). A posterio
 knitr::include_graphics(here("figures", "12_pp_check.pdf"))
 ```
 
-As expected, drift rates reverse by stimulus category: positive for word stimuli ($\delta$ = `r t2_drift_word`, evidence accumulates toward the "word" boundary) and negative for nonword stimuli ($\delta$ = `r t2_drift_nonword`, evidence accumulates toward the "nonword" boundary). This sign reversal is a direct consequence of response coding — the same underlying evidence accumulation process is now expressed relative to the "word" boundary rather than the "correct" boundary. The $\zeta$ estimates reveal a small starting-point shift: $\zeta$ = `r t2_zr_acc_ci` under accuracy emphasis and $\zeta$ = `r t2_zr_speed_ci` under speed emphasis. The accuracy-emphasis estimate of `r t2_zr_acc` suggests a slight bias toward saying "word," while the speed-emphasis estimate of `r t2_zr_speed` is close to unbiased. These values are consistent with the original @wagenmakers2008lexical analysis ($\zeta$ = 0.497 for accuracy, 0.476 for speed), confirming that this dataset shows only a very small a priori response bias (@fig-t2-params).
+As expected, drift reverses by stimulus category: positive for word stimuli ($\delta$ = `r t2_drift_word`, evidence accumulates toward the "word" boundary) and negative for nonword stimuli ($\delta$ = `r t2_drift_nonword`, evidence accumulates toward the "nonword" boundary). This sign reversal is a direct consequence of response coding — the same underlying evidence accumulation process is now expressed relative to the "word" boundary rather than the "correct" boundary. The $\zeta$ estimates reveal a small starting-point shift: $\zeta$ = `r t2_zr_acc_ci` under accuracy emphasis and $\zeta$ = `r t2_zr_speed_ci` under speed emphasis. The accuracy-emphasis estimate of `r t2_zr_acc` suggests a slight bias toward saying "word," while the speed-emphasis estimate of `r t2_zr_speed` is close to unbiased. These values are consistent with the original @wagenmakers2008lexical analysis ($\zeta$ = 0.497 for accuracy, 0.476 for speed), confirming that this dataset shows only a very small a priori response bias (@fig-t2-params).
 
 ```{r}
 #| label: fig-t2-params
@@ -638,7 +655,7 @@ So far, the EZ-Diffusion Model has worked with summary statistics — three numb
 
 ## The Censored-Shifted Wald Architecture
 
-Why not jump directly to the DDM? The DDM's Wiener likelihood, while mathematically complete, involves evaluating an infinite series for every trial — making it computationally expensive for iterative model development. The Censored-Shifted Wald sidesteps this by using the shifted Wald distribution, which describes the first-passage time of a diffusion process to a single absorbing boundary [@anders2016shifted; @heathcote2004fitting]. This single-boundary process is simpler to evaluate, yielding fitting times measured in minutes rather than hours. When error rates are low, the shifted Wald closely approximates the full two-boundary DDM (see DDM Estimation Approaches in the Background section), making the Censored-Shifted Wald a practical tool for developing and refining trial-level models before committing to the DDM's computational cost. Importantly, the `bmm` workflow remains identical — the only changes are the model object (`cswald()` instead of `ezdm()`) and the data format (trial-level RT and response columns instead of aggregated summary statistics).
+Why not jump directly to the DDM? The DDM's Wiener likelihood, while mathematically complete, involves evaluating an infinite series for every trial — making it computationally expensive for iterative model development. The Censored-Shifted Wald sidesteps this by using the shifted Wald distribution, which describes the first-passage time of a diffusion process to a single absorbing boundary [@anders2016shifted; @heathcote2004fitting]. This single-boundary process is simpler to evaluate, yielding fitting times several times shorter than the full DDM (a few hours rather than the better part of a day on the present dataset). When error rates are low, the shifted Wald closely approximates the full two-boundary DDM (see DDM Estimation Approaches in the Background section), making the Censored-Shifted Wald a practical tool for developing and refining trial-level models before committing to the DDM's computational cost. Importantly, the `bmm` workflow remains identical — the only changes are the model object (`cswald()` instead of `ezdm()`) and the data format (trial-level RT and response columns instead of aggregated summary statistics).
 
 ## Simple Version: Accuracy-Coded Analysis
 
@@ -676,7 +693,7 @@ fit_cswald_simple <- bmm(
 )
 ```
 
-The model converged well (maximum $\hat{R}$ = `r round(t3_rhat_simple, 3)`). Note that bound in the simple version represents *half* the full boundary separation (the distance from starting point to correct-response boundary), so it is not directly comparable to the EZ-Diffusion or full DDM bound estimates. The posterior predictive check (@fig-t3-ppcheck-simple) confirms adequate fit to the accuracy-coded RT distributions. The Censored-Shifted Wald (simple) recovers the same selective influence pattern as the EZ-Diffusion Model: drift is higher for words ($\delta$ = `r t3s_drift_word`) than nonwords ($\delta$ = `r t3s_drift_nonword`; BF = `r round(t3_bf_drift, 1)`), and bound (half boundary) is higher under accuracy emphasis (`r t3s_bound_acc`) than speed emphasis (`r t3s_bound_speed`; BF = `r ifelse(is.infinite(t3_bf_bound), "$\\infty$", round(t3_bf_bound, 1))`).
+The model converged well (maximum $\hat{R}$ = `r round(t3_rhat_simple, 3)`). The simple version models a single absorbing boundary by treating errors as censored observations; in the `bmm` parameterization, its bound estimates align closely with the EZ-Diffusion Model and the published reference values (see Cross-Approach Comparison), so they can be read on a comparable scale. Because the single-boundary approximation is least faithful for boundary separation, drift and ndt are the parameters the simple version recovers most reliably. The posterior predictive check (@fig-t3-ppcheck-simple) confirms adequate fit to the accuracy-coded RT distributions. The Censored-Shifted Wald (simple) recovers the same selective influence pattern as the EZ-Diffusion Model: drift is higher for words ($\delta$ = `r t3s_drift_word`) than nonwords ($\delta$ = `r t3s_drift_nonword`; BF = `r round(t3_bf_drift, 1)`), and bound is higher under accuracy emphasis (`r t3s_bound_acc`) than speed emphasis (`r t3s_bound_speed`; BF = `r ifelse(is.infinite(t3_bf_bound), "$\\infty$", round(t3_bf_bound, 1))`).
 
 ```{r}
 #| label: fig-t3-ppcheck-simple
@@ -808,9 +825,9 @@ Both DDM models converged (maximum $\hat{R}$ = `r round(t4_rhat_acc, 3)` for the
 knitr::include_graphics(here("figures", "14_pp_check_acc.pdf"))
 ```
 
-The accuracy-coded DDM recovers the expected drift rank ordering: HF (`r t4_drift_hf`) > NW (`r t4_drift_nw`) > LF (`r t4_drift_lf`) > VLF (`r t4_drift_vlf`). Boundary separation is clearly higher under accuracy emphasis ($\alpha$ = `r t4_bound_acc`) than speed emphasis ($\alpha$ = `r t4_bound_speed`), and non-decision time is estimated at $\tau$ = `r t4_ndt` s. The response-coded DDM estimates starting point values close to 0.5 ($\zeta$ = `r t4_zr_acc` for accuracy, `r t4_zr_speed` for speed), consistent with the EZ-Diffusion 4par and Censored-Shifted Wald (crisk) results.
+The accuracy-coded DDM recovers the expected drift rank ordering: HF (`r t4_drift_hf`) > NW (`r t4_drift_nw`) > LF (`r t4_drift_lf`) > VLF (`r t4_drift_vlf`). Boundary separation is clearly higher under accuracy emphasis ($\alpha$ = `r t4_bound_acc`) than speed emphasis ($\alpha$ = `r t4_bound_speed`), and non-decision time is estimated at $\tau$ = `r t4_ndt` s. As in the earlier tutorials, we can quantify the evidence for these effects with directional hypothesis tests: the frequency effect on drift (HF > VLF; BF = `r ifelse(is.infinite(t4_bf_drift), "$\\infty$", round(t4_bf_drift, 1))`) and the emphasis effect on bound (accuracy > speed; BF = `r ifelse(is.infinite(t4_bf_bound), "$\\infty$", round(t4_bf_bound, 1))`) are both supported decisively, reproducing the conclusions reached with the faster approaches. The response-coded DDM estimates starting point values close to 0.5 ($\zeta$ = `r t4_zr_acc` for accuracy, `r t4_zr_speed` for speed), consistent with the EZ-Diffusion 4par and Censored-Shifted Wald (crisk) results.
 
-Fitting the full DDM took substantially longer than the EZ-Diffusion Model (~30 seconds) or Censored-Shifted Wald (~3–5 hours): approximately 10–12 hours per model on the present dataset. We set `adapt_delta = 0.90` and `max_treedepth = 12` for both the Censored-Shifted Wald and full DDM to reduce divergent transitions and max-treedepth warnings; these settings are recommended as defaults for trial-level DDM fitting.
+Fitting the full DDM took substantially longer than the EZ-Diffusion Model (~30 seconds) or Censored-Shifted Wald (~4–5 hours for the simple version): approximately 18–20 hours per model on the present dataset (wall-clock time with five chains run in parallel). We set `adapt_delta = 0.90` and `max_treedepth = 12` for both the Censored-Shifted Wald and full DDM to reduce divergent transitions and max-treedepth warnings; these settings are recommended as defaults for trial-level DDM fitting.
 
 ## The EZ-Diffusion Model as a Fast Alternative
 
@@ -862,7 +879,7 @@ fit_ezdm_resp_freq <- bmm(
 )
 ```
 
-Both EZ-Diffusion models converged in under three minutes — approximately 1,000× faster than the full DDM. @fig-ezdm-vs-ddm compares the parameter estimates.
+Both EZ-Diffusion models converged in under three minutes — several hundred times faster than the full DDM. @fig-ezdm-vs-ddm compares the parameter estimates.
 
 ```{r}
 #| label: fig-ezdm-vs-ddm
@@ -872,7 +889,7 @@ Both EZ-Diffusion models converged in under three minutes — approximately 1,00
 knitr::include_graphics(here("figures", "14_ezdm_vs_ddm_freq.pdf"))
 ```
 
-The comparison reveals a systematic pattern. The EZ-Diffusion Model recovers the same drift rank ordering as the full DDM (HF > NW > LF > VLF in accuracy coding), with drift estimates approximately 10–15% higher — consistent with the known attenuation of EZ-Diffusion drift estimates at high values [@wagenmakers2007ezdiffusion; @vanravenzwaaij2017ez]. The EZ-Diffusion Model underestimates bound relative to the full DDM, particularly under accuracy emphasis where the DDM uses the full RT distribution shape to inform boundary separation. Non-decision time is estimated higher by the EZ-Diffusion Model (~0.38 s) than the full DDM (~0.27 s), likely because the EZ-Diffusion Model absorbs some decision-time variability into ndt. For the response-coded 4par model, the EZ-Diffusion Model also recovered the drift sign reversal (positive for words, negative for nonwords) and estimated $\zeta$ values consistent with the full DDM.
+The comparison reveals a systematic pattern. The EZ-Diffusion Model recovers the same drift rank ordering as the full DDM (HF > NW > LF > VLF in accuracy coding), with drift estimates approximately `r t4_drift_pct_mean`% higher on average (ranging from `r t4_drift_pct_lo`% to `r t4_drift_pct_hi`% across frequency levels) — consistent with the known attenuation of EZ-Diffusion drift estimates at high values [@wagenmakers2007ezdiffusion; @vanravenzwaaij2017ez]. The EZ-Diffusion Model underestimates bound relative to the full DDM, particularly under accuracy emphasis where the DDM uses the full RT distribution shape to inform boundary separation. Non-decision time is estimated higher by the EZ-Diffusion Model ($\tau$ = `r t4_ndt_ez` s) than the full DDM ($\tau$ = `r t4_ndt_ddm` s), likely because the EZ-Diffusion Model absorbs some decision-time variability into ndt. For the response-coded 4par model, the EZ-Diffusion Model also recovered the drift sign reversal (positive for words, negative for nonwords) and estimated $\zeta$ values consistent with the full DDM.
 
 These results demonstrate that the EZ-Diffusion Model is not merely a rough screening tool but a viable estimation approach in its own right. When the research question centers on drift — which experimental factor affects which cognitive process, and in what direction — the EZ-Diffusion Model provides the same substantive conclusions as the full DDM at a fraction of the computational cost. This computational cost motivates the staged workflow described in the Practical Guidelines.
 
@@ -892,13 +909,27 @@ knitr::include_graphics(here("figures", "15_cross_model_accuracy.pdf"))
 
 @fig-comparison-acc shows the accuracy-coded parameter estimates side by side. All three estimation approaches converge on the same *selective influence* pattern: stimulus category affects drift while emphasis condition affects bound. This convergence is reassuring — the core substantive conclusion holds regardless of whether we use summary statistics (EZ-Diffusion), a single-boundary approximation (Censored-Shifted Wald), or the full Wiener likelihood (DDM).
 
-The approaches diverge in absolute parameter values in ways consistent with their known properties. The EZ-Diffusion Model produces slightly higher drift estimates, consistent with the known attenuation of EZ-Diffusion drift estimates at high values that inflates the condition difference [@vanravenzwaaij2017ez]. The Censored-Shifted Wald (simple) estimates bound on a different scale — half the full boundary separation — and must be doubled for comparison with the EZ-Diffusion Model and full DDM. When rescaled, the Censored-Shifted Wald bound estimates fall between the EZ-Diffusion and full DDM values. Non-decision time estimates show the largest divergence: the EZ-Diffusion Model estimates higher ndt than the trial-level approaches, likely because it absorbs some decision-time variability that the full DDM and Censored-Shifted Wald capture through their distributional likelihoods.
+The approaches diverge in absolute values in ways consistent with their known properties (@tbl-cross-model-acc reports the parameters all three share). The EZ-Diffusion Model produces higher drift estimates than the trial-level approaches — around `r t4_drift_pct_mean`% higher on the frequency scale and more pronounced on the collapsed stimulus-category scale — consistent with the known attenuation of EZ-Diffusion drift at high values [@vanravenzwaaij2017ez]. For boundary separation, the EZ-Diffusion and Censored-Shifted Wald (simple) estimates agree closely with each other and with the published reference values, while the full DDM estimates somewhat higher boundaries, most visibly under accuracy emphasis, where it draws on the full RT-distribution shape. Non-decision time shows a clear ordering (@tbl-cross-model-acc): the EZ-Diffusion Model estimates higher ndt than the trial-level approaches, likely because it absorbs some decision-time variability that the distributional likelihoods of the full DDM and Censored-Shifted Wald capture directly.
+
+```{r}
+#| label: tbl-cross-model-acc
+#| tbl-cap: "Accuracy-coded parameter estimates (posterior mean [95% CrI], natural scale) for the parameters the three approaches share: boundary separation by emphasis condition and non-decision time. Bound and ndt are back-transformed from the log link. Drift is compared in @fig-comparison-acc and @fig-ezdm-vs-ddm."
+#| echo: false
+.g3 <- function(fe, row, d = 2) fmt_est(exp(fe[row, c("Estimate", "Q2.5", "Q97.5")]), d)
+cross_tab_acc <- tibble::tibble(
+  Parameter = c("Bound, speed ($\\alpha$)", "Bound, accuracy ($\\alpha$)", "ndt ($\\tau$, s)"),
+  `EZ-Diffusion`    = c(.g3(fe_t1,  "bound_conditionspeed"), .g3(fe_t1,  "bound_conditionaccuracy"), .g3(fe_t1,  "ndt_Intercept", 3)),
+  `CSWALD (simple)` = c(.g3(fe_t3s, "bound_conditionspeed"), .g3(fe_t3s, "bound_conditionaccuracy"), .g3(fe_t3s, "ndt_Intercept", 3)),
+  `Full DDM`        = c(.g3(fe_t4a, "bound_conditionspeed"), .g3(fe_t4a, "bound_conditionaccuracy"), .g3(fe_t4a, "ndt_Intercept", 3))
+)
+knitr::kable(cross_tab_acc, align = "lccc")
+```
 
 ## Response-Coded Estimates
 
 ```{r}
 #| label: fig-comparison-resp
-#| fig-cap: "Cross-approach comparison of response-coded parameter estimates. Left: Drift estimates by stimulus category — all three approaches show positive drift for words and negative drift for nonwords. Right: Relative starting point by emphasis condition. The Censored-Shifted Wald (crisk) may show slight differences from the full DDM due to the competing-risks approximation."
+#| fig-cap: "Cross-approach comparison of response-coded parameter estimates. Left: Drift estimates by stimulus category — all three approaches show positive drift for words and negative drift for nonwords. Right: Relative starting point by emphasis condition — all three approaches estimate values close to 0.5. The Censored-Shifted Wald (crisk) recovers the same drift sign reversal and near-unbiased starting point as the full DDM; its known underestimation of boundary separation is documented in the text below and the recovery study (Appendix)."
 #| eval: true
 #| echo: false
 knitr::include_graphics(here("figures", "15_cross_model_response.pdf"))
@@ -908,7 +939,7 @@ The response-coded comparison (@fig-comparison-resp) evaluates whether the appro
 
 ## Computational Cost
 
-The fitting time hierarchy — EZ-Diffusion (~30 s), Censored-Shifted Wald (~3–5 h), full DDM (~10–12 h) — makes the staged workflow practical. For a typical experiment with 17–30 participants and 200–500 trials per condition, the EZ-Diffusion Model provides results in under a minute that would take the full DDM a full workday. For research questions focused on drift, where all approaches agree closely, the EZ-Diffusion Model or Censored-Shifted Wald provide efficient alternatives. When bound or $\zeta$ are central, the full DDM is preferable because the EZ-Diffusion Model systematically overestimates drift differences and the Censored-Shifted Wald (crisk) shows a systematic ~10% bound underestimation.
+The fitting time hierarchy — EZ-Diffusion (~30 s), Censored-Shifted Wald (~1–5 h depending on variant), full DDM (~18–20 h) — makes the staged workflow practical. For a typical experiment with 17–30 participants and 200–500 trials per condition, the EZ-Diffusion Model provides results in under a minute that would take the full DDM the better part of a day. For research questions focused on drift, where all approaches agree closely, the EZ-Diffusion Model or Censored-Shifted Wald provide efficient alternatives. When bound or $\zeta$ are central, the full DDM is preferable because the EZ-Diffusion Model systematically overestimates drift differences and the Censored-Shifted Wald (crisk) shows a systematic ~10% bound underestimation.
 
 # Practical Guidelines
 
@@ -920,11 +951,11 @@ The choice among the three estimation approaches (see @tbl-model-comparison) sho
 
 - **Censored-Shifted Wald** (`cswald`): Recommended for iterative trial-level model development. Use simple for error rates below ~20%, crisk otherwise. Crisk yields DDM-comparable parameters but underestimates bound by ~10%.
 
-- **Full DDM** (`ddm`): Gold standard for confirmatory analysis. Plan for fitting times 2–4× longer than Censored-Shifted Wald (crisk).
+- **Full DDM** (`ddm`): Gold standard for confirmatory analysis. Plan for fitting times of roughly 15–20 hours per model — several times longer than the Censored-Shifted Wald, and an order of magnitude longer than its crisk variant.
 
 ## Recommended Workflow
 
-We recommend a staged workflow that exploits the computational hierarchy. The practical benefit of this approach is that by the time you fit the full DDM (which may take 10+ hours), you already know what pattern to expect from the EZ-Diffusion Model and Censored-Shifted Wald. If the full DDM confirms the EZ-Diffusion results, you have a robustness check that strengthens your findings. If it produces substantially different conclusions, this signals a potential problem — such as model misspecification or data quality issues — worth investigating before finalizing the analysis.
+We recommend a staged workflow that exploits the computational hierarchy. This is primarily an efficiency strategy rather than a claim that staging produces a better final model than fitting the DDM directly: by the time you fit the full DDM (which may take the better part of a day), you already know what pattern to expect from the EZ-Diffusion Model and Censored-Shifted Wald, so you can iterate on the predictor structure cheaply before committing to the expensive fit. Its warrant is empirical — in our cross-approach comparison the approaches converged on the same drift conclusions, so the faster models were trustworthy guides for the drift-focused questions that dominate EAM applications. Two caveats keep this from being a blind rubber-stamp. First, some divergence is expected by construction, not a warning sign: the EZ-Diffusion Model inflates drift differences and the Censored-Shifted Wald (crisk) underestimates bound, so the approaches should be compared on the parameters each estimates reliably. Second, a divergence *beyond* these known patterns — for example, a reversed effect or a qualitatively different rank order — does signal a potential problem, such as model misspecification or data-quality issues, worth investigating before finalizing the analysis.
 
 1. **Explore with the EZ-Diffusion Model** (`ezdm`): Rapidly screen condition effects on drift and identify which experimental factors influence which parameters.
 
@@ -973,15 +1004,15 @@ Common issues and solutions:
 
 # Summary and Discussion
 
-This tutorial demonstrated three approaches for estimating DDM parameters — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — applied to empirical data from a classic lexical decision experiment using `bmm`. Three themes emerged: (1) data preprocessing is a quantifiable necessity — the mixture-model approach consistently outperforms hard cutoffs; (2) the three estimation approaches form a useful computational hierarchy for staged analysis; and (3) response coding determines what questions a model can answer — accuracy coding tests selective influence, while response coding reveals decision bias, with practical constraints on the EZ-Diffusion 4par approach when boundary trial counts are unbalanced.
+This tutorial demonstrated three approaches for estimating DDM parameters — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — applied to empirical data from a classic lexical decision experiment using `bmm`. Three themes emerged: (1) data preprocessing is a quantifiable necessity — the mixture-model approach consistently outperforms hard cutoffs; (2) the three estimation approaches form a useful computational hierarchy for staged analysis; and (3) response coding determines what questions a model can answer — accuracy coding tests selective influence, while response coding reveals decision bias, with practical constraints on the EZ-Diffusion 4par approach when boundary trial counts are unbalanced. Working through the tutorials also delivers on the three objectives set out at the start: readers can now preprocess RT data for contaminant responses (Objective 1); specify, fit, and evaluate DDM-based models with `ezdm`, `cswald`, and `ddm` (Objective 2); and choose among the estimation approaches for a given research question (Objective 3).
 
 ## The Hierarchical EZ-Diffusion Model as a Viable Alternative
 
-As foreshadowed in the Introduction, a key finding from the cross-approach comparison and the EZ-Diffusion vs. full DDM comparison in Tutorial 4 is that the hierarchical EZ-Diffusion Model produces substantively identical conclusions to the full DDM for drift-related research questions — at approximately 1,000× lower computational cost. This has practical implications that go beyond the staged workflow recommended above.
+As foreshadowed in the Introduction, a key finding from the cross-approach comparison and the EZ-Diffusion vs. full DDM comparison in Tutorial 4 is that the hierarchical EZ-Diffusion Model produces substantively identical conclusions to the full DDM for drift-related research questions — at more than 1,000× lower computational cost (seconds versus the better part of a day). This has practical implications that go beyond the staged workflow recommended above.
 
 The original EZ-Diffusion Model was designed as a quick approximation that sacrifices statistical sophistication for accessibility [@wagenmakers2007ezdiffusion]. Within `bmm`, however, the EZ-Diffusion Model is no longer a standalone calculator but a full Bayesian hierarchical model: it estimates population-level effects with proper uncertainty quantification, supports arbitrary predictor structures via `bmf()`, and borrows strength across participants through hierarchical shrinkage. This addresses the two main criticisms of the original EZ-Diffusion Model — sensitivity to contaminants (handled by the mixture preprocessing) and the absence of hierarchical structure [@ratcliff2008ez; @vanravenzwaaij2017ez]. Recent work formalizing the EZ-Diffusion equations as a probabilistic proxy model [@chavez2025ez] provides theoretical justification for this approach, showing that the EZ-Diffusion equations can serve as a likelihood function within a Bayesian generative framework.
 
-For researchers whose primary interest is in how experimental manipulations affect drift — which is the most common use case for EAMs in cognitive psychology — the hierarchical EZ-Diffusion Model in `bmm` may be sufficient as the primary analysis, not merely a screening step. Three conditions support this recommendation. First, the EZ-Diffusion Model's statistical power for detecting condition effects on drift and bound is comparable to or higher than the full DDM's, because the simplifying assumptions reduce parameter uncertainty [@vanravenzwaaij2017ez]. Second, the hierarchical framework in `bmm` handles the sparse-cell problem that plagued the original EZ-Diffusion Model — even the 4par version with four frequency levels and response coding converged cleanly despite cells with as few as three minority-boundary responses. Third, the computational savings (seconds vs. hours) make it practical to fit many candidate model specifications, conduct sensitivity analyses, and iterate on the predictor structure — activities that are prohibitively expensive with the full DDM.
+For researchers whose primary interest is in how experimental manipulations affect drift — which is the most common use case for EAMs in cognitive psychology — the hierarchical EZ-Diffusion Model in `bmm` may be sufficient as the primary analysis, not merely a screening step. Three considerations support this. First, prior simulation work has shown that the EZ-Diffusion Model's statistical power for detecting condition effects on drift and bound is comparable to or higher than the full DDM's, because the simplifying assumptions reduce parameter uncertainty [@vanravenzwaaij2017ez]. We did not re-evaluate power here, but this literature result is consistent with the close convergence of conclusions we observed across approaches. Second, the hierarchical framework in `bmm` mitigates the sparse-cell problem that plagued the original EZ-Diffusion Model: even the 4par version with four frequency levels and response coding converged cleanly despite cells with as few as three minority-boundary responses. This robustness comes from hierarchical shrinkage, which borrows strength across participants — but clean convergence ($\hat{R} \approx 1$) is not the same as strong empirical support. Estimates for cells with only a handful of minority responses are pulled toward the group-level prior, and should be read as regularized rather than data-driven. Third, the computational savings (seconds vs. hours) make it practical to fit many candidate model specifications, conduct sensitivity analyses, and iterate on the predictor structure — activities that are prohibitively expensive with the full DDM.
 
 The EZ-Diffusion Model is not appropriate when the research question specifically concerns the shape of the RT distribution (e.g., leading-edge effects, relative speed of errors vs. correct responses) or when precise estimates of bound or ndt are required. In these cases, the full DDM remains the appropriate choice. The Censored-Shifted Wald occupies a useful middle ground — providing trial-level modeling at moderate computational cost — but its systematic bound underestimation limits its use for boundary-focused research questions.
 
@@ -1001,7 +1032,7 @@ To verify that the three `bmm` DDM estimation approaches produce reliable estima
 
 ## Simulation Design
 
-We generated data from a DDM with known parameters (drift: 2.5 for easy, 1.0 for hard; bound: 1.5; ndt: 0.3; $\zeta$: 0.5) for 50 participants, each completing 200 trials per condition. Individual-level parameters were drawn from normal distributions around the population means (see `scripts/20_prepare_simulated_data.R` for details). We then fitted the EZ-Diffusion 3par, Censored-Shifted Wald (crisk), and full DDM to these data following the same `bmm` workflow used in the tutorials.
+We generated data from a DDM with known parameters (drift: 2.5 for easy, 1.0 for hard; bound: 1.5; ndt: 0.3; $\zeta$: 0.5) for 50 participants, each completing 200 trials per condition. Individual-level parameters were drawn from normal distributions around the population means (see `scripts/20_prepare_simulated_data.R` for details). We then fitted the EZ-Diffusion 3par, Censored-Shifted Wald (crisk), and full DDM to these data following the same `bmm` workflow used in the tutorials. We set two a-priori criteria for successful recovery: at the group level, the 95% credible interval for each parameter should contain its generating value (calibration); at the subject level, true and recovered values should correlate at $r > .70$, the conventional benchmark for treating a measure as a reliable individual-difference index.
 
 ## Group-Level Recovery
 
