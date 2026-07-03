@@ -10,7 +10,7 @@
 ###############################################################################!
 
 pacman::p_load(
-  here, bmm, brms, rtdists,
+  here, bmm, brms,
   tidyverse, tidybayes, patchwork
 )
 source(here("functions", "clean_plot.R"))
@@ -24,16 +24,15 @@ adapt_delta   <- 0.90
 max_treedepth <- 12
 
 # -- Load preprocessed data ---------------------------------------------------
-# Run scripts/prepare_lexical_data.R once first to generate these files
+# Run scripts/01_prepare_lexical_data.R once first to generate these files
 data_resp_ezdm <- read_csv(here("data", "lexical_response_ezdm4par.csv"),
                             show_col_types = FALSE)
 data_response <- read_csv(here("data", "lexical_response_triallevel.csv"),
                            show_col_types = FALSE)
 
-###############################################################################!
-# 1) Examine Boundary Trial Counts --------------------------------------------
-###############################################################################!
-
+# -- Examine boundary trial counts ---------------------------------------------
+# The 4par EZDM needs stable RT moments on BOTH boundaries in every cell;
+# check the minority-boundary counts before fitting
 boundary_counts <- data_response |>
   count(id, condition, stim_cat, response) |>
   pivot_wider(names_from = response, values_from = n, values_fill = 0) |>
@@ -50,7 +49,7 @@ boundary_counts |>
   print()
 
 ###############################################################################!
-# 2) Model Specification & Fitting ---------------------------------------------
+# 1) Model Specification -------------------------------------------------------
 ###############################################################################!
 
 model_resp <- ezdm(
@@ -67,6 +66,10 @@ formula_resp_ezdm <- bmf(
   ndt   ~ 1 + (1 | id),
   zr    ~ 0 + condition + (0 + condition | id)
 )
+
+###############################################################################!
+# 2) Model Fitting -------------------------------------------------------------
+###############################################################################!
 
 fit_resp_ezdm <- bmm(
   formula = formula_resp_ezdm,
@@ -87,12 +90,18 @@ fit_resp_ezdm <- bmm(
 ###############################################################################!
 
 ## 3.1) Convergence diagnostics ------------------------------------------------
+# Rhat < 1.01 for all parameters indicates converged chains
 summary(fit_resp_ezdm)
-rhat_vals <- brms::rhat(fit_resp_ezdm)
-cat("Max Rhat:", max(rhat_vals, na.rm = TRUE), "\n")
+rhat_max <- max(brms::rhat(fit_resp_ezdm), na.rm = TRUE)
+cat("Max Rhat:", rhat_max, "\n")
 
 ## 3.2) Posterior predictive check ---------------------------------------------
-p_pp <- pp_check(fit_resp_ezdm, ndraws = 50)
+# Observed data (dark line) vs. posterior simulations (light lines).
+# Sparse minority-boundary cells (see the counts in section 0) can
+# occasionally produce NA predictions for the 4par model; fixing the seed
+# makes the check reproducible.
+set.seed(1)
+p_pp <- pp_check(fit_resp_ezdm, ndraws = 50) + clean_plot()
 ggsave(here("figures", "12_pp_check.pdf"), p_pp,
        width = 6.5, height = 4, device = "pdf")
 
@@ -112,8 +121,10 @@ cat("\nRelative starting point (zr):\n")
 cat("  Speed:   ", round(plogis(fixef_est["zr_conditionspeed", "Estimate"]), 3), "\n")
 cat("  Accuracy:", round(plogis(fixef_est["zr_conditionaccuracy", "Estimate"]), 3), "\n")
 
-## 3.3) Visualize response-coded parameters ------------------------------------
+## 3.4) Visualize response-coded parameters ------------------------------------
 
+# spread_draws() + pivot_longer(): one row per posterior draw, stacked by
+# coefficient (see Tutorial 1 for details)
 draws_drift <- fit_resp_ezdm |>
   spread_draws(b_drift_stim_catword, b_drift_stim_catnonword) |>
   pivot_longer(cols = starts_with("b_drift"),
@@ -149,3 +160,38 @@ p_resp_params <- p_drift / p_zr + plot_layout(heights = c(1, 1))
 
 ggsave(here("figures", "12_resp_params.pdf"),
        p_resp_params, width = 6.5, height = 5, device = "pdf")
+
+## 3.5) Hypothesis testing -----------------------------------------------------
+
+# Savage-Dickey equality tests (see Tutorial 1); the BF against equality is
+# 1 / Evid.Ratio
+
+# Test: does drift differ from zero for each stimulus category?
+hyp_drift_word <- hypothesis(fit_resp_ezdm, "drift_stim_catword = 0")
+print(hyp_drift_word)
+cat("\nBF against zero drift (word):",
+    round(1 / hyp_drift_word$hypothesis$Evid.Ratio, 1), "\n")
+
+hyp_drift_nw <- hypothesis(fit_resp_ezdm, "drift_stim_catnonword = 0")
+print(hyp_drift_nw)
+cat("\nBF against zero drift (nonword):",
+    round(1 / hyp_drift_nw$hypothesis$Evid.Ratio, 1), "\n")
+
+# Test: does bound differ between accuracy and speed emphasis?
+hyp_bound <- hypothesis(fit_resp_ezdm,
+  "bound_conditionaccuracy = bound_conditionspeed")
+print(hyp_bound)
+cat("\nBF against equal bound (accuracy vs. speed):",
+    round(1 / hyp_bound$hypothesis$Evid.Ratio, 1), "\n")
+
+# Test: is the starting point biased? zr uses a logit link, so a coefficient
+# of 0 corresponds to zr = 0.5 (unbiased)
+hyp_zr_acc <- hypothesis(fit_resp_ezdm, "zr_conditionaccuracy = 0")
+print(hyp_zr_acc)
+cat("\nBF against unbiased starting point (accuracy):",
+    round(1 / hyp_zr_acc$hypothesis$Evid.Ratio, 1), "\n")
+
+hyp_zr_speed <- hypothesis(fit_resp_ezdm, "zr_conditionspeed = 0")
+print(hyp_zr_speed)
+cat("\nBF against unbiased starting point (speed):",
+    round(1 / hyp_zr_speed$hypothesis$Evid.Ratio, 1), "\n")

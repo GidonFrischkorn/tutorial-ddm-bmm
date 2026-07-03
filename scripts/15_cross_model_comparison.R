@@ -1,9 +1,10 @@
 #' Cross-Model Comparison
 #'
-#' Loads all fitted models from Tutorials 1-4 and compares parameter estimates
-#' across EZDM, CSWALD, and DDM for both accuracy-coded and response-coded
-#' analyses. Overlays reference values from Wagenmakers et al. (2008), Table 2
-#' (converted to s = 1 scaling).
+#' Fits the EZ-Diffusion comparison models with the 4-level freq specification
+#' (matching the DDM from Tutorial 4), then loads all fitted models from
+#' Tutorials 1-4 and compares parameter estimates across EZDM, CSWALD, and DDM
+#' for both accuracy-coded and response-coded analyses. Overlays reference
+#' values from Wagenmakers et al. (2008), Table 2 (converted to s = 1 scaling).
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -14,15 +15,36 @@ pacman::p_load(
   tidyverse, tidybayes, patchwork
 )
 source(here("functions", "clean_plot.R"))
+source(here("functions", "extract_fixef.R"))
 
-# -- Load all fitted models ----------------------------------------------------
+# -- Fitting settings (for the EZDM comparison fits below) ---------------------
+chains <- 5
+cores  <- 5
+warmup <- 1000
+iter   <- 2000
+adapt_delta   <- 0.90
+max_treedepth <- 12
+
+# -- Load preprocessed trial-level data ----------------------------------------
+# Run scripts/01_prepare_lexical_data.R once first to generate these files
+freq_levels <- c("high", "low", "very_low", "nonword")
+
+data_accuracy_clean <- read_csv(
+  here("data", "lexical_accuracy_triallevel.csv"), show_col_types = FALSE
+) |>
+  mutate(freq = factor(freq, levels = freq_levels))
+
+data_response_clean <- read_csv(
+  here("data", "lexical_response_triallevel.csv"), show_col_types = FALSE
+) |>
+  mutate(freq = factor(freq, levels = freq_levels))
+
+# -- Load fitted models from Tutorials 1-4 -------------------------------------
 fit_acc_ezdm      <- readRDS(here("output", "fit_ezdm_lexical_acc.rds"))
-fit_acc_ezdm_freq <- readRDS(here("output", "fit_ezdm_lexical_acc_freq.rds"))
 fit_cswald_simple <- readRDS(here("output", "fit_cswald_lexical_simple.rds"))
 fit_ddm_acc       <- readRDS(here("output", "fit_ddm_lexical_acc.rds"))
 
 fit_resp_ezdm     <- readRDS(here("output", "fit_ezdm_lexical_resp.rds"))
-fit_resp_ezdm_freq <- readRDS(here("output", "fit_ezdm_lexical_resp_freq.rds"))
 fit_cswald_crisk  <- readRDS(here("output", "fit_cswald_lexical_resp.rds"))
 fit_ddm_resp      <- readRDS(here("output", "fit_ddm_lexical_resp.rds"))
 
@@ -33,38 +55,109 @@ ref_params <- read_csv(
 )
 
 ###############################################################################!
-# Helper: Extract fixed effects ------------------------------------------------
+# 1) EZ-Diffusion Comparison Fits (freq specification) --------------------------
 ###############################################################################!
 
-extract_fixef <- function(fit, model_name, params, transforms = list()) {
-  fe <- fixef(fit)
-  map_dfr(params, function(par_name) {
-    rows <- grep(paste0("^", par_name, "_"), rownames(fe), value = TRUE)
-    map_dfr(rows, function(r) {
-      est <- fe[r, ]
-      tfm <- transforms[[par_name]] %||% identity
-      tibble(
-        model = model_name,
-        parameter = par_name,
-        level = sub(paste0("^", par_name, "_"), "", r),
-        estimate = tfm(est["Estimate"]),
-        lower = tfm(est["Q2.5"]),
-        upper = tfm(est["Q97.5"])
-      )
-    })
-  })
-}
+# Fit the EZDM with the same 4-level freq variable on drift as the DDM in
+# Tutorial 4. This demonstrates that the EZDM produces qualitatively identical
+# results at a fraction of the computational cost. Both fits are cached via
+# `file`, so re-running this script loads them from output/.
 
-clean_levels <- function(df) {
-  df |>
-    mutate(
-      level = str_remove(level, "^(stim_cat|condition|freq)"),
-      level = str_remove(level, "Intercept")
-    )
-}
+## 1.1) EZDM 3par with freq (accuracy-coded) ------------------------------------
+
+data_acc_ezdm_freq <- data_accuracy_clean |>
+  summarize(
+    ezdm_summary_stats(rt, response, version = "3par",
+                       method = "mixture", distribution = "exgaussian"),
+    .by = c(id, condition, freq)
+  )
+
+model_ezdm <- ezdm(
+  mean_rt  = "mean_rt",
+  var_rt   = "var_rt",
+  n_upper  = "n_upper",
+  n_trials = "n_trials",
+  version  = "3par"
+)
+
+formula_ezdm_freq <- bmf(
+  drift ~ 0 + freq + (0 + freq | id),
+  bound ~ 0 + condition + (0 + condition | id),
+  ndt   ~ 1 + (1 | id)
+)
+
+fit_acc_ezdm_freq <- bmm(
+  formula = formula_ezdm_freq,
+  data    = data_acc_ezdm_freq,
+  model   = model_ezdm,
+  chains  = chains,
+  cores   = cores,
+  warmup  = warmup,
+  iter    = iter,
+  backend = "cmdstanr",
+  sample_prior = "yes",
+  control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
+  file    = here("output", "fit_ezdm_lexical_acc_freq")
+)
+
+## 1.2) EZDM 4par with freq (response-coded) ------------------------------------
+
+# Stress test: the 4par EZDM requires sufficient trials on *both* boundaries
+# in every cell (id x condition x freq). Use the robust method (MAD-based
+# estimators) with min_trials = 3 to retain cells with very few minority-
+# boundary responses; the mixture method's EM step fails in sparse cells.
+data_resp_ezdm_freq <- data_response_clean |>
+  summarize(
+    ezdm_summary_stats(rt, response, version = "4par",
+                       method = "robust",
+                       min_trials = 3),
+    .by = c(id, condition, freq)
+  )
+
+# Check trial counts on the minority boundary
+minority_counts <- data_resp_ezdm_freq |>
+  mutate(n_lower = n_trials - n_upper,
+         n_minority = pmin(n_upper, n_lower)) |>
+  group_by(condition, freq) |>
+  summarise(
+    median_minority = median(n_minority),
+    min_minority = min(n_minority),
+    .groups = "drop"
+  )
+cat("\n=== EZDM 4par: Trial counts on minority boundary ===\n")
+print(minority_counts)
+
+model_ezdm_4par <- ezdm(
+  mean_rt  = c("mean_rt_upper", "mean_rt_lower"),
+  var_rt   = c("var_rt_upper", "var_rt_lower"),
+  n_upper  = "n_upper",
+  n_trials = "n_trials",
+  version  = "4par"
+)
+
+formula_ezdm_resp_freq <- bmf(
+  drift ~ 0 + freq + (0 + freq | id),
+  bound ~ 0 + condition + (0 + condition | id),
+  ndt   ~ 1 + (1 | id),
+  zr    ~ 0 + condition + (0 + condition | id)
+)
+
+fit_resp_ezdm_freq <- bmm(
+  formula = formula_ezdm_resp_freq,
+  data    = data_resp_ezdm_freq,
+  model   = model_ezdm_4par,
+  chains  = chains,
+  cores   = cores,
+  warmup  = warmup,
+  iter    = iter,
+  backend = "cmdstanr",
+  sample_prior = "yes",
+  control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
+  file    = here("output", "fit_ezdm_lexical_resp_freq")
+)
 
 ###############################################################################!
-# 1) Accuracy-Coded Comparison -------------------------------------------------
+# 2) Accuracy-Coded Comparison -------------------------------------------------
 ###############################################################################!
 
 # EZDM (stim_cat), EZDM freq, CSWALD (stim_cat), DDM (freq)
@@ -72,7 +165,7 @@ clean_levels <- function(df) {
 
 acc_transforms <- list(bound = exp)
 
-# Bound comparison: all 4 models (CSWALD simple = half boundary)
+# Bound comparison: all 4 models (all on the full-boundary scale)
 bound_acc <- bind_rows(
   extract_fixef(fit_acc_ezdm, "EZDM", "bound", acc_transforms),
   extract_fixef(fit_acc_ezdm_freq, "EZDM (freq)", "bound", acc_transforms),
@@ -157,7 +250,7 @@ ggsave(here("figures", "15_cross_model_accuracy.pdf"),
        p_acc, width = 6.5, height = 6)
 
 ###############################################################################!
-# 2) Response-Coded Comparison -------------------------------------------------
+# 3) Response-Coded Comparison -------------------------------------------------
 ###############################################################################!
 
 resp_transforms <- list(bound = exp, zr = plogis)
@@ -266,7 +359,62 @@ ggsave(here("figures", "15_cross_model_response.pdf"),
        p_resp, width = 6.5, height = 6)
 
 ###############################################################################!
-# 3) Computational Cost Summary ------------------------------------------------
+# 4) EZDM vs DDM Figure (Tutorial 4) --------------------------------------------
+###############################################################################!
+
+# Three-panel figure for the manuscript's "EZ-Diffusion Model as a Fast
+# Alternative" section: drift by frequency, bound by condition, and ndt for
+# the accuracy-coded EZDM (freq) vs DDM, with reference values as X markers.
+
+ndt_transforms <- list(ndt = exp)
+
+comp_ndt <- bind_rows(
+  extract_fixef(fit_acc_ezdm_freq, "EZDM (freq)", "ndt", ndt_transforms),
+  extract_fixef(fit_ddm_acc, "DDM", "ndt", ndt_transforms)
+) |>
+  mutate(model = factor(model, levels = c("EZDM (freq)", "DDM")),
+         level = "ndt")
+
+ref_ndt <- ref_params |>
+  filter(parameter == "ndt") |>
+  transmute(level = "ndt", ref_value = value_s1)
+
+p_cmp_drift <- p_drift_freq +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p_cmp_bound <- ggplot(
+  bound_acc |> filter(model %in% c("EZDM (freq)", "DDM")),
+  aes(x = level, y = estimate, color = model, shape = model)
+) +
+  geom_pointrange(aes(ymin = lower, ymax = upper),
+                  position = position_dodge(width = 0.5), size = 0.5) +
+  geom_point(data = ref_bound, aes(x = level, y = ref_value),
+             inherit.aes = FALSE, shape = 4, size = 3, stroke = 1.2) +
+  scale_color_manual(values = eam_palette[c(1, 4)]) +
+  labs(x = NULL, y = NULL, title = "Bound by condition",
+       color = "Model", shape = "Model") +
+  clean_plot()
+
+p_cmp_ndt <- ggplot(comp_ndt, aes(x = level, y = estimate,
+                                   color = model, shape = model)) +
+  geom_pointrange(aes(ymin = lower, ymax = upper),
+                  position = position_dodge(width = 0.5), size = 0.5) +
+  geom_point(data = ref_ndt, aes(x = level, y = ref_value),
+             inherit.aes = FALSE, shape = 4, size = 3, stroke = 1.2) +
+  scale_color_manual(values = eam_palette[c(1, 4)]) +
+  labs(x = NULL, y = NULL, title = "Non-decision time",
+       color = "Model", shape = "Model") +
+  clean_plot()
+
+p_ezdm_vs_ddm <- (p_cmp_drift | p_cmp_bound | p_cmp_ndt) +
+  plot_layout(guides = "collect", widths = c(2, 1.2, 0.8)) &
+  theme(legend.position = "bottom")
+
+ggsave(here("figures", "15_ezdm_vs_ddm_freq.pdf"),
+       p_ezdm_vs_ddm, width = 6.5, height = 3.8)
+
+###############################################################################!
+# 5) Computational Cost Summary ------------------------------------------------
 ###############################################################################!
 
 cat("\n=== Computational Cost Summary ===\n")
@@ -275,5 +423,5 @@ cat("  EZDM 3par (accuracy):     ~30 seconds\n")
 cat("  EZDM 4par (response):     ~45 seconds\n")
 cat("  CSWALD simple (accuracy): ~4-5 hours\n")
 cat("  CSWALD crisk (response):  ~1 hour\n")
-cat("  DDM accuracy:             ~18-20 hours\n")
-cat("  DDM response:             ~17-18 hours\n")
+cat("  DDM accuracy:             ~20 hours\n")
+cat("  DDM response:             ~17 hours\n")

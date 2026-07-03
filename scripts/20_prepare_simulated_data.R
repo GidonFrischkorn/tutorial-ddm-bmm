@@ -60,6 +60,9 @@ subject_params <- expand_grid(
   ungroup()
 
 # Generate trial-level data using rddm()
+# rowwise() is needed because each row (participant x condition) carries its
+# own parameter values; reframe() then expands each row into n_trials_cond
+# simulated trials
 data_clean <- subject_params |>
   rowwise() |>
   reframe(

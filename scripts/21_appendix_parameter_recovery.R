@@ -16,6 +16,7 @@ pacman::p_load(
   tidyverse, tidybayes, patchwork
 )
 source(here("functions", "clean_plot.R"))
+source(here("functions", "extract_fixef.R"))
 
 # -- Fitting settings ---------------------------------------------------------
 chains <- 5
@@ -95,50 +96,19 @@ fit_ddm <- bmm(
 # 1) Group-Level Recovery ------------------------------------------------------
 ###############################################################################!
 
-extract_group_params <- function(fit, model_name) {
-  fe <- fixef(fit)
-
-  # Drift (identity link)
-  drift_rows <- grep("^drift_", rownames(fe), value = TRUE)
-  drift_est <- tibble(
-    model = model_name,
-    parameter = "drift",
-    level = sub("^drift_condition", "", drift_rows),
-    estimate = fe[drift_rows, "Estimate"],
-    lower = fe[drift_rows, "Q2.5"],
-    upper = fe[drift_rows, "Q97.5"]
-  )
-
-  # Bound (log link)
-  bound_row <- grep("^bound_", rownames(fe), value = TRUE)
-  bound_est <- tibble(
-    model = model_name,
-    parameter = "bound",
-    level = "overall",
-    estimate = exp(fe[bound_row, "Estimate"]),
-    lower = exp(fe[bound_row, "Q2.5"]),
-    upper = exp(fe[bound_row, "Q97.5"])
-  )
-
-  # Ndt (log link)
-  ndt_row <- grep("^ndt_", rownames(fe), value = TRUE)
-  ndt_est <- tibble(
-    model = model_name,
-    parameter = "ndt",
-    level = "overall",
-    estimate = exp(fe[ndt_row, "Estimate"]),
-    lower = exp(fe[ndt_row, "Q2.5"]),
-    upper = exp(fe[ndt_row, "Q97.5"])
-  )
-
-  bind_rows(drift_est, bound_est, ndt_est)
-}
+# Shared helper (functions/extract_fixef.R): tidy fixef() extraction with
+# link-inverse transforms per parameter
+group_transforms <- list(bound = exp, ndt = exp)
 
 group_recovery <- bind_rows(
-  extract_group_params(fit_ezdm_3par, "EZDM 3par"),
-  extract_group_params(fit_cswald_crisk, "CSWALD crisk"),
-  extract_group_params(fit_ddm, "DDM")
-)
+  extract_fixef(fit_ezdm_3par, "EZDM 3par", c("drift", "bound", "ndt"),
+                group_transforms),
+  extract_fixef(fit_cswald_crisk, "CSWALD crisk", c("drift", "bound", "ndt"),
+                group_transforms),
+  extract_fixef(fit_ddm, "DDM", c("drift", "bound", "ndt"), group_transforms)
+) |>
+  clean_levels() |>
+  mutate(level = if_else(level == "", "overall", level))
 
 # Add true values
 true_vals <- tibble(
@@ -220,21 +190,18 @@ subject_recovery <- bind_rows(
   extract_subject_params(fit_ddm, "DDM")
 )
 
-# Merge with true subject-level parameters
-# Data is long format: id, condition, drift_subj, bound_subj, ndt_subj
+# Merge with true subject-level parameters. Drift varies by condition;
+# bound_subj and ndt_subj are constant across conditions, so one row per id
+# suffices for those.
 true_subject <- bind_rows(
   true_params_subject |>
-    filter(condition == "easy") |>
-    transmute(id, parameter = "drift_easy", true_value = drift_subj),
-  true_params_subject |>
-    filter(condition == "hard") |>
-    transmute(id, parameter = "drift_hard", true_value = drift_subj),
+    transmute(id, parameter = paste0("drift_", condition),
+              true_value = drift_subj),
   true_params_subject |>
     filter(condition == "easy") |>
-    transmute(id, parameter = "bound", true_value = bound_subj),
-  true_params_subject |>
-    filter(condition == "easy") |>
-    transmute(id, parameter = "ndt", true_value = ndt_subj)
+    pivot_longer(c(bound_subj, ndt_subj),
+                 names_to = "parameter", values_to = "true_value") |>
+    transmute(id, parameter = str_remove(parameter, "_subj"), true_value)
 )
 
 subject_recovery <- subject_recovery |>

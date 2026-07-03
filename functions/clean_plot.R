@@ -67,7 +67,9 @@ clean_plot <- function(base_size = 11, base_family = "", ...) {
       axis.ticks = element_line(color = "black", linewidth = 0.4),
       axis.text  = element_text(color = "black", size = rel(0.82)),
 
-      # legend
+      # legend: consistently placed below the plot across all figures;
+      # override per plot with + theme(legend.position = ...) after clean_plot()
+      legend.position   = "bottom",
       legend.key        = element_rect(fill = "white", color = NA),
       legend.background = element_rect(fill = "white", color = NA),
 

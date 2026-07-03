@@ -9,7 +9,7 @@
 ###############################################################################!
 
 pacman::p_load(
-  here, bmm, brms, rtdists,
+  here, bmm, brms,
   tidyverse, tidybayes, patchwork
 )
 source(here("functions", "clean_plot.R"))
@@ -23,7 +23,7 @@ adapt_delta   <- 0.90
 max_treedepth <- 12
 
 # -- Load preprocessed data ---------------------------------------------------
-# Run scripts/prepare_lexical_data.R once first to generate these files
+# Run scripts/01_prepare_lexical_data.R once first to generate these files
 data_acc_ezdm <- read_csv(here("data", "lexical_accuracy_ezdm3par.csv"),
                            show_col_types = FALSE)
 
@@ -68,11 +68,14 @@ fit_acc_ezdm <- bmm(
 ###############################################################################!
 
 ## 3.1) Convergence diagnostics ------------------------------------------------
+# Rhat < 1.01 for all parameters indicates converged chains
 summary(fit_acc_ezdm)
-rhat_vals <- brms::rhat(fit_acc_ezdm)
-cat("Max Rhat:", max(rhat_vals, na.rm = TRUE), "\n")
+rhat_max <- max(brms::rhat(fit_acc_ezdm), na.rm = TRUE)
+cat("Max Rhat:", rhat_max, "\n")
 
 ## 3.2) Posterior predictive check ---------------------------------------------
+# Overlays data simulated from the posterior (light lines) on the observed
+# data (dark line); close overlap indicates adequate model fit
 p_pp <- pp_check(fit_acc_ezdm, ndraws = 50) + clean_plot()
 ggsave(here("figures", "11_pp_check.pdf"), p_pp,
        width = 6.5, height = 4, device = "pdf")
@@ -97,7 +100,9 @@ cat("  Accuracy:", round(exp(fixef_est["bound_conditionaccuracy", "Estimate"]), 
 
 ## 3.4) Visualize parameter estimates ------------------------------------------
 
-# Extract drift draws by stim_cat
+# spread_draws() (tidybayes) returns one row per posterior draw with the
+# requested coefficients as columns; pivot_longer() stacks them so both
+# stimulus categories can be plotted in one panel
 draws_drift <- fit_acc_ezdm |>
   spread_draws(b_drift_stim_catword, b_drift_stim_catnonword) |>
   pivot_longer(
@@ -143,16 +148,19 @@ ggsave(here("figures", "11_param_estimates.pdf"),
 
 ## 3.5) Hypothesis testing -----------------------------------------------------
 
-# Test: drift higher for words than nonwords
+# Savage-Dickey equality tests: Evid.Ratio is the BF *for* equality; its
+# inverse (reported in the manuscript) quantifies the evidence against equality
+
+# Test: does drift differ between words and nonwords?
 hyp_drift <- hypothesis(fit_acc_ezdm,
   "drift_stim_catword = drift_stim_catnonword")
 print(hyp_drift)
-cat("\nEvidence ratio (word = nonword):",
-    round(hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
+cat("\nBF against equal drift (word vs. nonword):",
+    round(1 / hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
 
-# Test: bound higher for accuracy than speed emphasis
+# Test: does bound differ between accuracy and speed emphasis?
 hyp_bound <- hypothesis(fit_acc_ezdm,
   "bound_conditionaccuracy = bound_conditionspeed")
 print(hyp_bound)
-cat("\nEvidence ratio (accuracy = speed):",
-    round(hyp_bound$hypothesis$Evid.Ratio, 1), "\n")
+cat("\nBF against equal bound (accuracy vs. speed):",
+    round(1 / hyp_bound$hypothesis$Evid.Ratio, 1), "\n")
