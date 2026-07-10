@@ -151,34 +151,45 @@ extract_subject_params <- function(fit, model_name, n_subjects = 50) {
 
   # With (0 + condition | id) on drift, coef() returns condition-specific
   # subject-level estimates directly.
+  # coef()$id carries the 95% CrI bounds (Q2.5/Q97.5) alongside the mean, so
+  # we extract them here to report posterior uncertainty per participant.
   drift_easy <- tibble(
     model = model_name,
     parameter = "drift_easy",
     id = 1:n_subjects,
-    recovered = co[1:n_subjects, "Estimate", "drift_conditioneasy"]
+    recovered = co[1:n_subjects, "Estimate", "drift_conditioneasy"],
+    lower = co[1:n_subjects, "Q2.5", "drift_conditioneasy"],
+    upper = co[1:n_subjects, "Q97.5", "drift_conditioneasy"]
   )
 
   drift_hard <- tibble(
     model = model_name,
     parameter = "drift_hard",
     id = 1:n_subjects,
-    recovered = co[1:n_subjects, "Estimate", "drift_conditionhard"]
+    recovered = co[1:n_subjects, "Estimate", "drift_conditionhard"],
+    lower = co[1:n_subjects, "Q2.5", "drift_conditionhard"],
+    upper = co[1:n_subjects, "Q97.5", "drift_conditionhard"]
   )
 
-  # Bound (log link)
+  # Bound (log link): exponentiate the point and both CrI bounds. exp() is
+  # monotonic, so exp(Q2.5)/exp(Q97.5) are the natural-scale 95% CrI limits.
   bound <- tibble(
     model = model_name,
     parameter = "bound",
     id = 1:n_subjects,
-    recovered = exp(co[1:n_subjects, "Estimate", "bound_Intercept"])
+    recovered = exp(co[1:n_subjects, "Estimate", "bound_Intercept"]),
+    lower = exp(co[1:n_subjects, "Q2.5", "bound_Intercept"]),
+    upper = exp(co[1:n_subjects, "Q97.5", "bound_Intercept"])
   )
 
-  # Ndt (log link)
+  # Ndt (log link): same natural-scale back-transform of the CrI bounds.
   ndt <- tibble(
     model = model_name,
     parameter = "ndt",
     id = 1:n_subjects,
-    recovered = exp(co[1:n_subjects, "Estimate", "ndt_Intercept"])
+    recovered = exp(co[1:n_subjects, "Estimate", "ndt_Intercept"]),
+    lower = exp(co[1:n_subjects, "Q2.5", "ndt_Intercept"]),
+    upper = exp(co[1:n_subjects, "Q97.5", "ndt_Intercept"])
   )
 
   bind_rows(drift_easy, drift_hard, bound, ndt)
@@ -220,18 +231,35 @@ subject_cors <- subject_recovery |>
   mutate(label = sprintf("r = %.2f", r))
 
 # -- Plot subject-level recovery -----------------------------------------------
-p_subject <- ggplot(subject_recovery,
-                     aes(x = true_value, y = recovered, color = model)) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.3) +
-  geom_point(alpha = 0.6, size = 1.5) +
-  geom_text(data = subject_cors,
-            aes(x = -Inf, y = Inf, label = label, color = model),
-            hjust = -0.1, vjust = 1.3, size = 3, show.legend = FALSE) +
-  facet_grid(model ~ parameter, scales = "free") +
-  scale_color_manual(values = eam_palette[c(1, 3, 4)]) +
-  labs(x = "True value", y = "Recovered estimate") +
-  clean_plot() +
-  theme(legend.position = "none")
+# One facet_wrap row per estimation approach (parameters across columns),
+# stacked with patchwork. Each panel keeps free scales so parameters on
+# different ranges (notably ndt) stay informative. Model colors follow the
+# c(1, 3, 4) palette indices used for the group-level figure.
+model_colors <- c("EZDM 3par"    = eam_palette[1],
+                  "CSWALD crisk" = eam_palette[3],
+                  "DDM"          = eam_palette[4])
+
+recovery_row <- function(model_name, x_title = FALSE, y_title = FALSE) {
+  d    <- filter(subject_recovery, model == model_name)
+  cors <- filter(subject_cors, model == model_name)
+  ggplot(d, aes(x = true_value, y = recovered)) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.3) +
+    geom_pointrange(aes(ymin = lower, ymax = upper),
+                    color = model_colors[[model_name]],
+                    alpha = 0.5, size = 0.3, linewidth = 0.3) +
+    geom_text(data = cors, aes(x = -Inf, y = Inf, label = label),
+              color = model_colors[[model_name]],
+              hjust = -0.1, vjust = 1.3, size = 3) +
+    facet_wrap(~ parameter, nrow = 1, ncol = 4, scales = "free") +
+    labs(title = model_name,
+         x = if (x_title) "True value" else NULL,
+         y = if (y_title) "Recovered estimate" else NULL) +
+    clean_plot()
+}
+
+p_subject <- recovery_row("EZDM 3par") /
+  recovery_row("CSWALD crisk", y_title = TRUE) /
+  recovery_row("DDM", x_title = TRUE)
 
 ggsave(here("figures", "21_recovery_subject.pdf"),
-       p_subject, width = 6.5, height = 6)
+       p_subject, width = 6.5, height = 7.5)
