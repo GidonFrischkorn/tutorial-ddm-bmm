@@ -2,10 +2,12 @@
 #'
 #' This tutorial demonstrates WHY preprocessing matters for evidence
 #' accumulation modeling. Using simulated data with known parameters, we show
-#' that contaminant RTs (fast guesses, slow outliers) systematically bias
-#' the summary statistics that EAMs rely on, and that bmm's mixture-based
-#' preprocessing tools -- flag_contaminant_rts() and ezdm_summary_stats() --
-#' restore accurate summary statistics.
+#' that contaminant RTs systematically bias the summary statistics that EAMs
+#' rely on, and that bmm's mixture-based preprocessing tools --
+#' flag_contaminant_rts() and ezdm_summary_stats() -- restore accurate summary
+#' statistics. The contaminants come from the three processes evaluated in the
+#' Monte Carlo study (scripts/02_simulation_contaminant_methods.R): fast
+#' guesses, delayed start-ups, and informationless responses.
 #'
 #' The systematic comparison of flagging settings (core distributions,
 #' contaminant bounds, hard pre-filtering, threshold vs. probabilistic
@@ -20,8 +22,9 @@ source(here("functions", "clean_plot.R"))
 
 # Simulated data from scripts/20_prepare_simulated_data.R:
 # 50 participants x 2 conditions x 200 trials with known DDM parameters.
-# The contaminated version adds 4% fast guesses and 3% slow outliers;
-# is_contaminant flags the injected trials (ground truth).
+# The contaminated version injects 3% of trials from each of three processes
+# (9% in total); is_contaminant flags the injected trials and
+# contaminant_type records which process produced them (ground truth).
 data_contaminated <- read_csv(
   here("data", "simulated_rt_data_contaminated.csv"),
   show_col_types = FALSE
@@ -35,20 +38,50 @@ data_clean <- read_csv(
 # 1) Bias Demonstration: Contaminants Distort Summary Statistics ---------------
 ###############################################################################!
 
-## 1.1) Visualize the contaminated RT distributions ----------------------------
+## 1.1) Visualize where each contaminant process falls -------------------------
 
-p_rt_density <- bind_rows(
-  data_clean |> mutate(source = "Clean"),
-  data_contaminated |> mutate(source = "Contaminated")
-) |>
-  ggplot(aes(x = rt, fill = source)) +
-  geom_density(alpha = 0.5, color = NA) +
-  facet_wrap(~condition,
-             labeller = labeller(condition = str_to_title)) +
-  scale_fill_manual(values = eam_palette[c(1, 4)]) +
-  labs(x = "Reaction Time (s)", y = "Density", fill = "Data") +
-  coord_cartesian(xlim = c(0, 3)) +
-  clean_plot()
+# The three processes differ in how far they fall from the RT distribution the
+# decision process produces, which is what determines whether a preprocessing
+# method can separate them (Appendix A). Each panel shows the shape of the core
+# distribution and the shape of the injected contaminants; both are scaled to
+# the same area, so the panels compare where the components sit, not how many
+# trials each contains (contaminants are 3% of trials).
+
+process_levels <- c("fast guess", "delayed start-up", "informationless")
+process_labels <- c("Fast guesses", "Delayed start-ups",
+                    "Informationless responses")
+
+components <- data_contaminated |>
+  filter(contaminant_type != "none") |>
+  transmute(condition, rt,
+            component = factor(contaminant_type, levels = process_levels,
+                               labels = process_labels)) |>
+  bind_rows(
+    # the core distribution is the same in every panel
+    expand_grid(data_clean |> select(condition, rt),
+                component = factor(process_labels, levels = process_labels)) |>
+      mutate(source = "Decision process")
+  ) |>
+  mutate(
+    source = if_else(is.na(source), "Contaminants", source),
+    source = factor(source, levels = c("Decision process", "Contaminants")),
+    condition = factor(condition, levels = c("easy", "hard"),
+                       labels = c("Easy", "Hard"))
+  )
+
+p_rt_density <- components |>
+  ggplot(aes(x = rt, fill = source, color = source)) +
+  geom_density(alpha = 0.55, linewidth = 0.4) +
+  facet_grid(condition ~ component, scales = "free_y") +
+  scale_fill_manual(values = c("Decision process" = "grey65",
+                               "Contaminants" = eam_palette[4])) +
+  scale_color_manual(values = c("Decision process" = "grey35",
+                                "Contaminants" = eam_palette[4])) +
+  coord_cartesian(xlim = c(0, 3.5)) +
+  labs(x = "Reaction Time (s)", y = "Density", fill = NULL, color = NULL) +
+  clean_plot() +
+  theme(legend.position = "bottom",
+        axis.text.y = element_blank(), axis.ticks.y = element_blank())
 
 ggsave(here("figures", "10_rt_density.pdf"),
        p_rt_density, width = 6.5, height = 4, device = "pdf")
@@ -115,7 +148,8 @@ data_flagged <- data_contaminated |>
     contam_prob = flag_contaminant_rts(
       rt,
       distribution = "exgaussian",
-      contaminant_bound = c("min", "max")
+      contaminant_bound = c("min", "max"),
+      maxit = 500
     )
   ) |>
   ungroup() |>
@@ -152,7 +186,8 @@ cat("Precision (flagged = true contaminant):",
 sumstats_mixture <- data_contaminated |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
-                       method = "mixture", distribution = "exgaussian"),
+                       method = "mixture", distribution = "exgaussian",
+                       maxit = 500),
     .by = c(id, condition)
   ) |>
   mutate(source = "Mixture-cleaned")

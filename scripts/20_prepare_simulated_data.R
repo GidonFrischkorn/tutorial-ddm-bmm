@@ -3,7 +3,13 @@
 #' Generates trial-level data from known DDM parameters using rddm().
 #' Produces two versions:
 #'   1) Clean data -- ground truth for parameter recovery
-#'   2) Contaminated data -- with injected fast guesses and slow outliers
+#'   2) Contaminated data -- with injected contaminants from three processes
+#'
+#' The three contaminant processes are the ones evaluated in the Monte Carlo
+#' study of scripts/02_simulation_contaminant_methods.R, so the demonstration
+#' and the simulation describe the same phenomena. Each contaminated trial
+#' carries a contaminant_type label, which lets Tutorial 0 show where each
+#' process falls relative to the core RT distribution.
 #'
 #' The contaminated data is used in Tutorial 0 to demonstrate how contaminants
 #' bias EAM parameter estimates. All subsequent tutorials use the cleaned data.
@@ -81,58 +87,63 @@ data_clean <- subject_params |>
 # 3) Inject Contaminants -------------------------------------------------------
 ###############################################################################!
 
-# Create a contaminated version of the data by replacing ~7% of trials with
-# contaminant RTs. This mirrors realistic data where some responses arise from
-# processes other than evidence accumulation (Ratcliff & Kang, 2021).
+# Create a contaminated version of the data by replacing 3% of trials with
+# each of three contaminant processes (9% in total). The three processes are
+# the ones evaluated in the Monte Carlo study (Appendix A) and differ in where
+# they fall relative to the core RT distribution:
 #
-# Contaminant types:
-#   a) Fast guesses (~4%): RT drawn from Uniform(0.1, ndt_subj), with random
-#      accuracy at chance (Bernoulli 0.5). These represent responses made
-#      before evidence accumulation could meaningfully begin.
-#   b) Slow outliers (~3%): RT drawn from Uniform(mean_RT + 2*SD_RT,
-#      mean_RT + 5*SD_RT). These represent attentional lapses or delayed
-#      processing unrelated to the decision.
+#   a) Fast guesses: RT ~ Uniform(0.1, ndt_subj) with accuracy at chance --
+#      responses emitted before evidence accumulation could begin, so they lie
+#      entirely below the fastest RT the decision process can produce
+#      (Swensson, 1972; Ratcliff, 2008).
+#   b) Delayed start-ups: Uniform(0, 2 s) added to the RT the decision process
+#      produced, leaving the response untouched -- an attentional lapse that
+#      delays the start of processing, which places part of the contaminants
+#      inside the core distribution (Ratcliff & Tuerlinckx, 2002).
+#   c) Informationless responses: the trial is redrawn from the same DDM with
+#      drift = 0 -- a response given without stimulus information, at ordinary
+#      speed and with accuracy at chance, which overlaps the core completely
+#      (Vandekerckhove, Tuerlinckx, & Lee, 2008).
 
-contam_rate_fast <- 0.04
-contam_rate_slow <- 0.03
-
-# Compute per-subject RT statistics for slow outlier range
-rt_stats <- data_clean |>
-  group_by(id) |>
-  summarize(
-    mean_rt_subj = mean(rt),
-    sd_rt_subj   = sd(rt),
-    .groups = "drop"
-  )
+contam_rate <- 0.03  # per process, per participant x condition cell
 
 data_contaminated <- data_clean |>
-  left_join(rt_stats, by = "id") |>
   group_by(id, condition) |>
   mutate(
     n = n(),
-    # Randomly assign contamination status
     contam_draw = sample(n()),
-    is_fast_contam = contam_draw <= round(n * contam_rate_fast),
-    is_slow_contam = !is_fast_contam &
-      contam_draw > (n - round(n * contam_rate_slow))
+    k = round(n * contam_rate),
+    contaminant_type = case_when(
+      contam_draw <= k     ~ "fast guess",
+      contam_draw <= 2 * k ~ "delayed start-up",
+      contam_draw <= 3 * k ~ "informationless",
+      .default = "none"
+    )
   ) |>
-  ungroup() |>
-  mutate(
-    # Inject fast guesses: RT below ndt, response at chance
-    rt = if_else(is_fast_contam,
-                 runif(n(), 0.1, ndt_true),
-                 rt),
-    response = if_else(is_fast_contam,
-                       as.numeric(rbinom(n(), 1, 0.5)),
-                       response),
-    # Inject slow outliers: RT far above mean
-    rt = if_else(is_slow_contam,
-                 runif(n(), mean_rt_subj + 2 * sd_rt_subj,
-                       mean_rt_subj + 5 * sd_rt_subj),
-                 rt),
-    is_contaminant = is_fast_contam | is_slow_contam
-  ) |>
-  select(id, condition, trial, rt, response, is_contaminant)
+  ungroup()
+
+# Fast guesses: RT below ndt, response at chance
+is_fast <- data_contaminated$contaminant_type == "fast guess"
+data_contaminated$rt[is_fast] <- runif(sum(is_fast), 0.1,
+                                       data_contaminated$ndt_true[is_fast])
+data_contaminated$response[is_fast] <- rbinom(sum(is_fast), 1, 0.5)
+
+# Delayed start-ups: add a uniform delay, keep the response
+is_delay <- data_contaminated$contaminant_type == "delayed start-up"
+data_contaminated$rt[is_delay] <- data_contaminated$rt[is_delay] +
+  runif(sum(is_delay), 0, 2)
+
+# Informationless responses: redraw the trial with drift = 0
+is_guess <- data_contaminated$contaminant_type == "informationless"
+redraw <- rddm(sum(is_guess), drift = 0,
+               bound = data_contaminated$bound_true[is_guess],
+               ndt = data_contaminated$ndt_true[is_guess], zr = 0.5)
+data_contaminated$rt[is_guess]       <- redraw$rt
+data_contaminated$response[is_guess] <- redraw$response
+
+data_contaminated <- data_contaminated |>
+  mutate(is_contaminant = contaminant_type != "none") |>
+  select(id, condition, trial, rt, response, is_contaminant, contaminant_type)
 
 ###############################################################################!
 # 4) Compute EZDM Summary Statistics -------------------------------------------

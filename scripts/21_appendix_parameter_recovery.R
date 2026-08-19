@@ -101,11 +101,11 @@ fit_ddm <- bmm(
 group_transforms <- list(bound = exp, ndt = exp)
 
 group_recovery <- bind_rows(
-  extract_fixef(fit_ezdm_3par, "EZDM 3par", c("drift", "bound", "ndt"),
+  extract_fixef(fit_ezdm_3par, "EZ-Diffusion (3par)", c("drift", "bound", "ndt"),
                 group_transforms),
-  extract_fixef(fit_cswald_crisk, "CSWALD crisk", c("drift", "bound", "ndt"),
+  extract_fixef(fit_cswald_crisk, "Censored-Shifted Wald (crisk)", c("drift", "bound", "ndt"),
                 group_transforms),
-  extract_fixef(fit_ddm, "DDM", c("drift", "bound", "ndt"), group_transforms)
+  extract_fixef(fit_ddm, "Full DDM", c("drift", "bound", "ndt"), group_transforms)
 ) |>
   clean_levels() |>
   mutate(level = if_else(level == "", "overall", level))
@@ -120,7 +120,7 @@ true_vals <- tibble(
 group_recovery <- group_recovery |>
   left_join(true_vals, by = c("parameter", "level")) |>
   mutate(
-    model = factor(model, levels = c("EZDM 3par", "CSWALD crisk", "DDM")),
+    model = factor(model, levels = c("EZ-Diffusion (3par)", "Censored-Shifted Wald (crisk)", "Full DDM")),
     parameter = factor(parameter, levels = c("drift", "bound", "ndt"))
   )
 
@@ -196,9 +196,9 @@ extract_subject_params <- function(fit, model_name, n_subjects = 50) {
 }
 
 subject_recovery <- bind_rows(
-  extract_subject_params(fit_ezdm_3par, "EZDM 3par"),
-  extract_subject_params(fit_cswald_crisk, "CSWALD crisk"),
-  extract_subject_params(fit_ddm, "DDM")
+  extract_subject_params(fit_ezdm_3par, "EZ-Diffusion (3par)"),
+  extract_subject_params(fit_cswald_crisk, "Censored-Shifted Wald (crisk)"),
+  extract_subject_params(fit_ddm, "Full DDM")
 )
 
 # Merge with true subject-level parameters. Drift varies by condition;
@@ -218,7 +218,7 @@ true_subject <- bind_rows(
 subject_recovery <- subject_recovery |>
   left_join(true_subject, by = c("id", "parameter")) |>
   mutate(
-    model = factor(model, levels = c("EZDM 3par", "CSWALD crisk", "DDM")),
+    model = factor(model, levels = c("EZ-Diffusion (3par)", "Censored-Shifted Wald (crisk)", "Full DDM")),
     parameter = factor(parameter,
                        levels = c("drift_easy", "drift_hard", "bound", "ndt"),
                        labels = c("Drift (easy)", "Drift (hard)", "Bound", "NDT"))
@@ -235,9 +235,9 @@ subject_cors <- subject_recovery |>
 # stacked with patchwork. Each panel keeps free scales so parameters on
 # different ranges (notably ndt) stay informative. Model colors follow the
 # c(1, 3, 4) palette indices used for the group-level figure.
-model_colors <- c("EZDM 3par"    = eam_palette[1],
-                  "CSWALD crisk" = eam_palette[3],
-                  "DDM"          = eam_palette[4])
+model_colors <- c("EZ-Diffusion (3par)"    = eam_palette[1],
+                  "Censored-Shifted Wald (crisk)" = eam_palette[3],
+                  "Full DDM"     = eam_palette[4])
 
 recovery_row <- function(model_name, x_title = FALSE, y_title = FALSE) {
   d    <- filter(subject_recovery, model == model_name)
@@ -257,9 +257,9 @@ recovery_row <- function(model_name, x_title = FALSE, y_title = FALSE) {
     clean_plot()
 }
 
-p_subject <- recovery_row("EZDM 3par") /
-  recovery_row("CSWALD crisk", y_title = TRUE) /
-  recovery_row("DDM", x_title = TRUE)
+p_subject <- recovery_row("EZ-Diffusion (3par)") /
+  recovery_row("Censored-Shifted Wald (crisk)", y_title = TRUE) /
+  recovery_row("Full DDM", x_title = TRUE)
 
 ggsave(here("figures", "21_recovery_subject.pdf"),
        p_subject, width = 6.5, height = 7.5)
