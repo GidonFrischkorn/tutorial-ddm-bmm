@@ -116,7 +116,8 @@ flag_results <- expand_grid(
       group_by(id, condition) |>
       mutate(
         contam_prob = flag_contaminant_rts(
-          rt, distribution = dist, contaminant_bound = bounds
+          rt, distribution = dist, contaminant_bound = bounds,
+          maxit = 500
         )
       ) |>
       ungroup() |>
@@ -226,7 +227,8 @@ sumstats_by_settings <- expand_grid(
         ezdm_summary_stats(rt, response,
                            version = "3par", method = "mixture",
                            distribution = dist,
-                           contaminant_bound = bounds),
+                           contaminant_bound = bounds,
+                           maxit = 500),
         .by = c(id, condition)
       ) |>
       mutate(distribution = dist, bound_setting = bound_name,

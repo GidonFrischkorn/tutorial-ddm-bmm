@@ -92,10 +92,12 @@ data_clean <- subject_params |>
 # the ones evaluated in the Monte Carlo study (Appendix A) and differ in where
 # they fall relative to the core RT distribution:
 #
-#   a) Fast guesses: RT ~ Uniform(0.1, ndt_subj) with accuracy at chance --
-#      responses emitted before evidence accumulation could begin, so they lie
-#      entirely below the fastest RT the decision process can produce
-#      (Swensson, 1972; Ratcliff, 2008).
+#   a) Leading-edge anticipations: each subject draws a depth x_i ~ U(0.1, 0.5)
+#      (shared across conditions); RT ~ U((1 - x_i) ndt_subj, (1 + x_i) ndt_subj)
+#      with accuracy at chance -- premature responses that straddle the leading
+#      edge of the core RT distribution, so neither hard cutoffs nor the mixture
+#      model gets a free case (Lerche, Voss & Nagler, 2017, adapted to centre
+#      on ndt; the v7 construct of the Monte Carlo study).
 #   b) Delayed start-ups: Uniform(0, 2 s) added to the RT the decision process
 #      produced, leaving the response untouched -- an attentional lapse that
 #      delays the start of processing, which places part of the contaminants
@@ -114,7 +116,7 @@ data_contaminated <- data_clean |>
     contam_draw = sample(n()),
     k = round(n * contam_rate),
     contaminant_type = case_when(
-      contam_draw <= k     ~ "fast guess",
+      contam_draw <= k     ~ "leading-edge anticipation",
       contam_draw <= 2 * k ~ "delayed start-up",
       contam_draw <= 3 * k ~ "informationless",
       .default = "none"
@@ -122,10 +124,17 @@ data_contaminated <- data_clean |>
   ) |>
   ungroup()
 
-# Fast guesses: RT below ndt, response at chance
-is_fast <- data_contaminated$contaminant_type == "fast guess"
-data_contaminated$rt[is_fast] <- runif(sum(is_fast), 0.1,
-                                       data_contaminated$ndt_true[is_fast])
+# Leading-edge anticipations: each subject draws an anticipation depth
+# x_i ~ U(0.1, 0.5), shared across conditions; contaminated RTs fall in a
+# uniform band around the subject's ndt, response at chance
+subj_x <- tibble(id = 1:n_subjects, x_i = runif(n_subjects, 0.1, 0.5))
+data_contaminated <- data_contaminated |> left_join(subj_x, by = "id")
+is_fast <- data_contaminated$contaminant_type == "leading-edge anticipation"
+data_contaminated$rt[is_fast] <- runif(
+  sum(is_fast),
+  (1 - data_contaminated$x_i[is_fast]) * data_contaminated$ndt_true[is_fast],
+  (1 + data_contaminated$x_i[is_fast]) * data_contaminated$ndt_true[is_fast]
+)
 data_contaminated$response[is_fast] <- rbinom(sum(is_fast), 1, 0.5)
 
 # Delayed start-ups: add a uniform delay, keep the response

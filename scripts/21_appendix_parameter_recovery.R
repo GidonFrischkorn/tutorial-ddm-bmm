@@ -21,6 +21,10 @@ source(here("functions", "extract_fixef.R"))
 # -- Fitting settings ---------------------------------------------------------
 chains <- 5
 cores  <- 5
+# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
+# that the fitting times reported in the tutorial stay comparable across the
+# three DDM estimation approaches.
+threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
@@ -55,7 +59,8 @@ formula_ezdm <- bmf(
 )
 fit_ezdm_3par <- bmm(
   formula = formula_ezdm, data = data_ezdm, model = model_ezdm,
-  chains = chains, cores = cores, warmup = warmup, iter = iter,
+  chains = chains, cores = cores, threads = threading(threads),
+  warmup = warmup, iter = iter,
   backend = "cmdstanr", sample_prior = "yes",
   control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
   file = here("output", "fit_ezdm_3par")
@@ -71,7 +76,8 @@ formula_cswald <- bmf(
 )
 fit_cswald_crisk <- bmm(
   formula = formula_cswald, data = data_sim, model = model_cswald,
-  chains = chains, cores = cores, warmup = warmup, iter = iter,
+  chains = chains, cores = cores, threads = threading(threads),
+  warmup = warmup, iter = iter,
   backend = "cmdstanr", sample_prior = "yes",
   control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
   file = here("output", "fit_cswald_crisk")
@@ -86,7 +92,8 @@ formula_ddm <- bmf(
 )
 fit_ddm <- bmm(
   formula = formula_ddm, data = data_sim, model = model_ddm,
-  chains = chains, cores = cores, warmup = warmup, iter = iter,
+  chains = chains, cores = cores, threads = threading(threads),
+  warmup = warmup, iter = iter,
   backend = "cmdstanr", sample_prior = "yes",
   control = list(adapt_delta = adapt_delta, max_treedepth = max_treedepth),
   file = here("output", "fit_ddm")

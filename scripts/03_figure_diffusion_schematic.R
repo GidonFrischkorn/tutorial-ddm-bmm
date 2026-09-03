@@ -6,6 +6,11 @@
 #' boundary (correct responses above, errors below). All four parameters are
 #' annotated: drift (delta), boundary separation (alpha), non-decision time
 #' (tau), and relative starting point (zeta_r).
+#'
+#' The non-decision time is drawn in its two conceptual parts: stimulus
+#' encoding before accumulation starts (shaded band) and motor execution after
+#' a boundary is reached (dashed segments). The DDM estimates only their sum,
+#' so the split below is illustrative and its proportions are arbitrary.
 
 pacman::p_load(here, bmm, tidyverse, patchwork)
 source(here("functions", "clean_plot.R"))
@@ -16,12 +21,16 @@ set.seed(42)
 drift   <- 2.0
 bound   <- 1.5
 ndt     <- 0.30
+ndt_enc <- 0.18          # encoding share of ndt (display only)
+ndt_mot <- ndt - ndt_enc # motor share of ndt (display only)
 zr      <- 0.5
 dt      <- 0.001
 n_steps <- 1200
 x_lim   <- 1.25   # right edge of the plot (seconds)
 
 # --- Simulate candidate diffusion paths and keep a small illustrative set ----
+# Accumulation starts after encoding, so paths are shifted by ndt_enc; the
+# remaining ndt_mot is added afterwards as the motor segment.
 sim_paths <- map(1:300, function(i) {
   noise <- rnorm(n_steps, mean = drift * dt, sd = sqrt(dt))
   evidence <- cumsum(noise) + zr * bound
@@ -31,7 +40,7 @@ sim_paths <- map(1:300, function(i) {
   if (is.infinite(hit) || is.na(hit)) return(NULL)
   tibble(
     path_id  = i,
-    time     = seq_len(hit) * dt + ndt,
+    time     = seq_len(hit) * dt + ndt_enc,
     evidence = pmin(pmax(evidence[seq_len(hit)], 0), bound),
     outcome  = if (evidence[hit] >= bound) "upper" else "lower"
   )
@@ -39,10 +48,11 @@ sim_paths <- map(1:300, function(i) {
   compact() |>
   bind_rows()
 
-# Keep paths that terminate within the plotting window and are neither
-# too short nor too long for a readable display
+# Keep paths whose response (boundary crossing plus motor time) falls within
+# the plotting window and is neither too short nor too long for a readable
+# display
 path_info <- sim_paths |>
-  summarise(rt = max(time), outcome = first(outcome), .by = path_id) |>
+  summarise(rt = max(time) + ndt_mot, outcome = first(outcome), .by = path_id) |>
   filter(rt > 0.45, rt < 1.05)
 
 ids_upper <- path_info |> filter(outcome == "upper") |> slice_head(n = 4) |> pull(path_id)
@@ -50,7 +60,16 @@ ids_lower <- path_info |> filter(outcome == "lower") |> slice_head(n = 2) |> pul
 
 paths_bg   <- sim_paths |> filter(path_id %in% c(ids_upper[-1], ids_lower[-1]))
 paths_main <- sim_paths |> filter(path_id %in% c(ids_upper[1], ids_lower[1]))
-ends_main  <- paths_main |> slice_tail(n = 1, by = path_id)
+
+# Motor segments: from the boundary crossing to the registered response
+tails <- sim_paths |>
+  filter(path_id %in% c(ids_upper, ids_lower)) |>
+  slice_tail(n = 1, by = path_id) |>
+  mutate(x_end = time + ndt_mot,
+         main  = path_id %in% c(ids_upper[1], ids_lower[1]))
+
+ends_main   <- tails |> filter(main)
+motor_upper <- ends_main |> filter(outcome == "upper")
 
 # --- Simulate many trials for the RT distributions at the boundaries ---------
 sim_rt <- rddm(20000, drift = drift, bound = bound, ndt = ndt, zr = zr)
@@ -71,7 +90,7 @@ dens_upper <- dens_scaled(sim_rt$rt[sim_rt$response == 1], dens_height)
 dens_lower <- dens_scaled(sim_rt$rt[sim_rt$response == 0], dens_height * 0.45)
 
 y_top <- bound + dens_height + 0.12
-y_bot <- -max(dens_lower$h) - 0.28
+y_bot <- -max(dens_lower$h) - 0.38
 
 # --- Build the figure ---------------------------------------------------------
 p_schematic <- ggplot() +
@@ -102,12 +121,12 @@ p_schematic <- ggplot() +
   geom_hline(yintercept = bound, linewidth = 0.8, color = "grey30") +
   geom_hline(yintercept = 0, linewidth = 0.8, color = "grey30") +
 
-  # Non-decision time shading and flat pre-accumulation segment
-  annotate("rect", xmin = 0, xmax = ndt, ymin = 0, ymax = bound,
+  # Encoding: shading and flat segment before accumulation starts
+  annotate("rect", xmin = 0, xmax = ndt_enc, ymin = 0, ymax = bound,
            fill = "grey92", alpha = 0.8) +
-  annotate("segment", x = 0, xend = ndt, y = zr * bound, yend = zr * bound,
+  annotate("segment", x = 0, xend = ndt_enc, y = zr * bound, yend = zr * bound,
            color = "grey30", linewidth = 0.6) +
-  annotate("text", x = 0.035, y = 0.06,
+  annotate("text", x = 0.028, y = 0.06,
            label = "Stimulus onset", angle = 90, hjust = 0,
            size = 2.8, color = "grey45") +
 
@@ -118,20 +137,30 @@ p_schematic <- ggplot() +
   geom_line(data = paths_main,
             aes(x = time, y = evidence, group = path_id, color = outcome),
             linewidth = 0.7, alpha = 0.95) +
-  geom_point(data = ends_main,
-             aes(x = time, y = evidence, color = outcome), size = 2.6) +
+
+  # Motor execution: dashed continuation from the boundary to the response
+  geom_segment(data = tails,
+               aes(x = time, xend = x_end, y = evidence, yend = evidence,
+                   color = outcome, linewidth = main, alpha = main),
+               linetype = "22", lineend = "round") +
+  scale_linewidth_manual(values = c(`TRUE` = 1.1, `FALSE` = 0.5),
+                         guide = "none") +
+  scale_alpha_manual(values = c(`TRUE` = 0.95, `FALSE` = 0.35),
+                     guide = "none") +
+  geom_point(data = ends_main, aes(x = x_end, y = evidence, color = outcome),
+             size = 2.6) +
   scale_color_manual(values = c(upper = eam_palette[1],
                                 lower = eam_palette[4]), guide = "none") +
 
   # Starting point
-  geom_point(aes(x = ndt, y = zr * bound), size = 2.6, color = "grey30") +
+  geom_point(aes(x = ndt_enc, y = zr * bound), size = 2.6, color = "grey30") +
 
   # Drift: arrow along the mean accumulation slope
-  annotate("segment", x = ndt + 0.03, xend = ndt + 0.27,
+  annotate("segment", x = ndt_enc + 0.03, xend = ndt_enc + 0.27,
            y = zr * bound + 0.06, yend = zr * bound + 0.06 + drift * 0.24,
            arrow = arrow(length = unit(0.11, "inches"), type = "closed"),
            color = "grey20", linewidth = 0.8) +
-  annotate("label", x = ndt + 0.33, y = zr * bound + 0.06 + drift * 0.24,
+  annotate("label", x = ndt_enc + 0.33, y = zr * bound + 0.06 + drift * 0.24,
            label = "Drift~(italic(delta))", parse = TRUE,
            hjust = 0, vjust = 1.1, size = 3.4, color = "grey20",
            fill = "#FFFFFFD9", border.colour = NA,
@@ -146,21 +175,35 @@ p_schematic <- ggplot() +
            hjust = 1, size = 4, color = "grey30") +
 
   # Relative starting point (zeta_r), dotted
-  annotate("segment", x = ndt - 0.015, xend = ndt - 0.015,
+  annotate("segment", x = ndt_enc - 0.015, xend = ndt_enc - 0.015,
            y = 0, yend = zr * bound,
            arrow = arrow(ends = "both", length = unit(0.06, "inches")),
            color = "grey40", linewidth = 0.4, linetype = "dotted") +
-  annotate("text", x = ndt - 0.05, y = zr * bound / 2,
+  annotate("text", x = ndt_enc - 0.05, y = zr * bound * 0.5,
            label = "italic(zeta)[r]", parse = TRUE,
            hjust = 1, size = 3.4, color = "grey30") +
 
-  # Non-decision time (tau) bracket under the flat segment
-  annotate("segment", x = 0, xend = ndt,
-           y = zr * bound - 0.14, yend = zr * bound - 0.14,
+  # Encoding bracket (pre-decisional part of the non-decision time)
+  annotate("segment", x = 0, xend = ndt_enc,
+           y = zr * bound + 0.16, yend = zr * bound + 0.16,
            arrow = arrow(ends = "both", length = unit(0.06, "inches")),
            color = "grey40", linewidth = 0.4) +
-  annotate("text", x = ndt / 2, y = zr * bound - 0.26,
-           label = "italic(tau)", parse = TRUE, size = 3.6, color = "grey30") +
+  annotate("text", x = ndt_enc / 2, y = zr * bound + 0.30,
+           label = "Encoding", size = 2.8, color = "grey30") +
+
+  # Motor bracket (post-decisional part), over the highlighted upper path
+  annotate("segment", x = motor_upper$time, xend = motor_upper$x_end,
+           y = bound - 0.16, yend = bound - 0.16,
+           arrow = arrow(ends = "both", length = unit(0.06, "inches")),
+           color = "grey40", linewidth = 0.4) +
+  annotate("text", x = motor_upper$x_end + 0.02, y = bound - 0.30,
+           label = "Motor execution", hjust = 0,
+           size = 2.8, color = "grey30") +
+
+  # The two parts are one parameter, not two
+  annotate("text", x = 0, y = y_bot + 0.06, hjust = 0,
+           label = "'Non-decision time'~(italic(tau))=='encoding + motor execution'",
+           parse = TRUE, size = 3, color = "grey30") +
 
   # Boundary labels (inside the panel, right-aligned)
   annotate("text", x = x_lim - 0.1, y = bound - 0.05,

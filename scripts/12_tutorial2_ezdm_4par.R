@@ -18,6 +18,10 @@ source(here("functions", "clean_plot.R"))
 # -- Fitting settings ---------------------------------------------------------
 chains <- 5
 cores  <- 5
+# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
+# that the fitting times reported in the tutorial stay comparable across the
+# three DDM estimation approaches.
+threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
@@ -77,6 +81,7 @@ fit_resp_ezdm <- bmm(
   model   = model_resp,
   chains  = chains,
   cores   = cores,
+  threads = threading(threads),
   warmup  = warmup,
   iter    = iter,
   backend = "cmdstanr",

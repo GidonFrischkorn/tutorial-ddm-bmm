@@ -20,6 +20,10 @@ source(here("functions", "extract_fixef.R"))
 # -- Fitting settings (for the EZDM comparison fits below) ---------------------
 chains <- 5
 cores  <- 5
+# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
+# that the fitting times reported in the tutorial stay comparable across the
+# three DDM estimation approaches.
+threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
@@ -65,10 +69,14 @@ ref_params <- read_csv(
 
 ## 1.1) EZDM 3par with freq (accuracy-coded) ------------------------------------
 
+# maxit = 500 matches script 01. The freq split is finer than the stim_cat
+# split used there (130 cells instead of 68), so the EM's iteration cap bites
+# harder here, not less.
 data_acc_ezdm_freq <- data_accuracy_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
-                       method = "mixture", distribution = "exgaussian"),
+                       method = "mixture", distribution = "exgaussian",
+                       maxit = 500),
     .by = c(id, condition, freq)
   )
 
@@ -92,6 +100,7 @@ fit_acc_ezdm_freq <- bmm(
   model   = model_ezdm,
   chains  = chains,
   cores   = cores,
+  threads = threading(threads),
   warmup  = warmup,
   iter    = iter,
   backend = "cmdstanr",
@@ -148,6 +157,7 @@ fit_resp_ezdm_freq <- bmm(
   model   = model_ezdm_4par,
   chains  = chains,
   cores   = cores,
+  threads = threading(threads),
   warmup  = warmup,
   iter    = iter,
   backend = "cmdstanr",
@@ -165,11 +175,16 @@ fit_resp_ezdm_freq <- bmm(
 
 acc_transforms <- list(bound = exp)
 
-# Bound comparison: all 4 models (all on the full-boundary scale)
+# The cswald "simple" bound is the distance from the starting point to the
+# correct boundary, i.e. half the boundary separation that ezdm and ddm
+# report. Doubling puts all four models on the full-boundary scale.
+cswald_transforms <- list(bound = \(x) exp(x) * 2)
+
+# Bound comparison: all 4 models, on the full-boundary scale
 bound_acc <- bind_rows(
   extract_fixef(fit_acc_ezdm, "EZDM", "bound", acc_transforms),
   extract_fixef(fit_acc_ezdm_freq, "EZDM (freq)", "bound", acc_transforms),
-  extract_fixef(fit_cswald_simple, "CSWALD simple", "bound", acc_transforms),
+  extract_fixef(fit_cswald_simple, "CSWALD simple", "bound", cswald_transforms),
   extract_fixef(fit_ddm_acc, "DDM", "bound", acc_transforms)
 ) |>
   clean_levels() |>
@@ -417,11 +432,14 @@ ggsave(here("figures", "15_ezdm_vs_ddm_freq.pdf"),
 # 5) Computational Cost Summary ------------------------------------------------
 ###############################################################################!
 
+# Wall-clock times read off the archived fits with rstan::get_elapsed_time()
+# (slowest chain, since the 5 chains run in parallel). Keep these in step with
+# the Computational Cost section of the manuscript.
 cat("\n=== Computational Cost Summary ===\n")
-cat("These times are approximate wall-clock (5 chains in parallel) and depend on hardware:\n")
-cat("  EZDM 3par (accuracy):     ~30 seconds\n")
-cat("  EZDM 4par (response):     ~45 seconds\n")
-cat("  CSWALD simple (accuracy): ~4-5 hours\n")
-cat("  CSWALD crisk (response):  ~1 hour\n")
-cat("  DDM accuracy:             ~20 hours\n")
-cat("  DDM response:             ~17 hours\n")
+cat("Wall-clock (5 chains in parallel); depends on hardware:\n")
+cat("  EZDM 3par (accuracy):     21 s (74 s for the freq specification)\n")
+cat("  EZDM 4par (response):     43 s (144 s for the freq specification)\n")
+cat("  CSWALD simple (accuracy): 4.5 hours\n")
+cat("  CSWALD crisk (response):  17.9 hours\n")
+cat("  DDM accuracy:             20.6 hours\n")
+cat("  DDM response:             17.5 hours\n")

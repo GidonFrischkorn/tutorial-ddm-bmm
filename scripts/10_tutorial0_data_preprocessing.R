@@ -6,8 +6,9 @@
 #' rely on, and that bmm's mixture-based preprocessing tools --
 #' flag_contaminant_rts() and ezdm_summary_stats() -- restore accurate summary
 #' statistics. The contaminants come from the three processes evaluated in the
-#' Monte Carlo study (scripts/02_simulation_contaminant_methods.R): fast
-#' guesses, delayed start-ups, and informationless responses.
+#' Monte Carlo study (scripts/02_simulation_contaminant_methods.R):
+#' leading-edge anticipations, delayed start-ups, and informationless
+#' responses.
 #'
 #' The systematic comparison of flagging settings (core distributions,
 #' contaminant bounds, hard pre-filtering, threshold vs. probabilistic
@@ -47,8 +48,9 @@ data_clean <- read_csv(
 # the same area, so the panels compare where the components sit, not how many
 # trials each contains (contaminants are 3% of trials).
 
-process_levels <- c("fast guess", "delayed start-up", "informationless")
-process_labels <- c("Fast guesses", "Delayed start-ups",
+process_levels <- c("leading-edge anticipation", "delayed start-up",
+                    "informationless")
+process_labels <- c("Leading-edge anticipations", "Delayed start-ups",
                     "Informationless responses")
 
 components <- data_contaminated |>
@@ -141,7 +143,7 @@ ggsave(here("figures", "10_sumstats_bias.pdf"),
 # distribution into a core component (here: ex-Gaussian) and a uniform
 # contaminant component, returning the probability that each trial is a
 # contaminant. contaminant_bound = c("min", "max") expects contaminants at
-# both ends of the distribution (fast guesses AND slow outliers).
+# both ends of the distribution (premature responses AND slow outliers).
 data_flagged <- data_contaminated |>
   group_by(id, condition) |>
   mutate(
@@ -161,20 +163,25 @@ classification <- data_flagged |>
   summarize(
     sensitivity = sum(is_contaminant & flagged, na.rm = TRUE) /
       sum(is_contaminant),
+    specificity = sum(!is_contaminant & !flagged, na.rm = TRUE) /
+      sum(!is_contaminant),
     precision   = sum(is_contaminant & flagged, na.rm = TRUE) /
       sum(flagged, na.rm = TRUE)
   )
 cat("\n=== Default flagging vs. ground truth ===\n")
-cat("Sensitivity (contaminants caught):  ",
+cat("Sensitivity (contaminants caught):     ",
     round(classification$sensitivity, 3), "\n")
+cat("Specificity (clean trials kept):       ",
+    round(classification$specificity, 3), "\n")
 cat("Precision (flagged = true contaminant):",
     round(classification$precision, 3), "\n")
 
-# Flagged trials are mostly true contaminants (high precision); borderline
-# contaminants close to the core distribution can escape detection.
-# validate_fast_guesses() offers an additional check that flagged fast trials
-# show chance accuracy; see scripts/10b_preprocessing_comparison.R for it and
-# for the systematic comparison of flagging settings.
+# The scores show the asymmetry the manuscript discusses: flags are rare among
+# clean trials (high specificity), but contaminants overlapping the core --
+# leading-edge anticipations and informationless responses -- largely escape
+# detection. validate_fast_guesses() offers an additional check that flagged
+# fast trials show chance accuracy; see scripts/10b_preprocessing_comparison.R
+# for it and for the systematic comparison of flagging settings.
 
 ###############################################################################!
 # 3) Cleaning Restores Accurate Summary Statistics -----------------------------

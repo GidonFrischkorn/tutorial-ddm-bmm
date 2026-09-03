@@ -56,7 +56,8 @@ data_validation <- data_all |>
   mutate(
     contam_prob = flag_contaminant_rts(
       rt, distribution = "exgaussian",
-      contaminant_bound = c("min", "max")
+      contaminant_bound = c("min", "max"),
+      maxit = 500
     )
   ) |>
   ungroup() |>
@@ -84,13 +85,19 @@ data_response <- data_lexical |>
   mutate(response = ifelse(response == "word", "upper", "lower"))
 
 # -- Contaminant detection ----------------------------------------------------
+# maxit = 500 rather than the default 100: at the default the EM hits the
+# iteration cap in a handful of cells and flag_contaminant_rts() returns NA for
+# every trial in them. Because the filter below drops NA, those cells vanish
+# from the trial-level data entirely -- 1,901 trials across 4 cells on this
+# dataset. At 500 every cell converges.
 data_accuracy <- data_accuracy |>
   group_by(id, condition, stim_cat) |>
   mutate(
     contam_prob = flag_contaminant_rts(
       rt,
       distribution = "exgaussian",
-      contaminant_bound = c("min", "max")
+      contaminant_bound = c("min", "max"),
+      maxit = 500
     )
   ) |>
   ungroup()
@@ -108,14 +115,22 @@ data_response_clean <- data_response |>
 # -- EZDM summary statistics --------------------------------------------------
 
 # 3par (accuracy-coded)
+# maxit = 500 for the same reason as above: on non-convergence
+# ezdm_summary_stats() silently substitutes robust moments, which shifted
+# mean_rt by up to 0.13 s in 4 of the 68 cells at the default.
 data_acc_ezdm <- data_accuracy |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
-                       method = "mixture", distribution = "exgaussian"),
+                       method = "mixture", distribution = "exgaussian",
+                       maxit = 500),
     .by = c(id, condition, stim_cat)
   )
 
 # 4par (response-coded)
+# The robust method is used here because several design cells contain too few
+# minority-boundary responses to estimate a two-component mixture at all -- a
+# property of the design, not of the EM's iteration budget. maxit would not
+# change this, so the mixture method is not an option for the 4par statistics.
 data_resp_ezdm <- data_response |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",

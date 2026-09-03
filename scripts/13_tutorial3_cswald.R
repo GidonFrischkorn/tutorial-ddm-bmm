@@ -20,6 +20,10 @@ source(here("functions", "clean_plot.R"))
 # -- Fitting settings ---------------------------------------------------------
 chains <- 5
 cores  <- 5
+# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
+# that the fitting times reported in the tutorial stay comparable across the
+# three DDM estimation approaches.
+threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
@@ -79,6 +83,7 @@ fit_cswald_simple <- bmm(
   model   = model_simple,
   chains  = chains,
   cores   = cores,
+  threads = threading(threads),
   warmup  = warmup,
   iter    = iter,
   backend = "cmdstanr",
@@ -93,6 +98,7 @@ fit_cswald_crisk <- bmm(
   model   = model_crisk,
   chains  = chains,
   cores   = cores,
+  threads = threading(threads),
   warmup  = warmup,
   iter    = iter,
   backend = "cmdstanr",
@@ -134,10 +140,15 @@ cat("\nCSWALD simple -- drift estimates:\n")
 cat("  Word:   ", round(fixef_simple["drift_stim_catword", "Estimate"], 3), "\n")
 cat("  Nonword:", round(fixef_simple["drift_stim_catnonword", "Estimate"], 3), "\n")
 
-# Bound by condition (log link -> exponentiate)
-cat("\nCSWALD simple -- bound estimates:\n")
-cat("  Speed:   ", round(exp(fixef_simple["bound_conditionspeed", "Estimate"]), 3), "\n")
-cat("  Accuracy:", round(exp(fixef_simple["bound_conditionaccuracy", "Estimate"]), 3), "\n")
+# Bound by condition (log link -> exponentiate). The simple version estimates
+# the distance from the starting point to the correct boundary, which is half
+# the boundary separation reported by ezdm and ddm, so multiply by 2 to put it
+# on the same scale as the other two approaches.
+bound_simple <- exp(fixef_simple[c("bound_conditionspeed",
+                                   "bound_conditionaccuracy"), "Estimate"]) * 2
+cat("\nCSWALD simple -- bound estimates (full-boundary scale):\n")
+cat("  Speed:   ", round(bound_simple[1], 3), "\n")
+cat("  Accuracy:", round(bound_simple[2], 3), "\n")
 
 fixef_crisk <- fixef(fit_cswald_crisk)
 
