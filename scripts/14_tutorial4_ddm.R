@@ -71,7 +71,7 @@ model_ddm <- ddm(rt = "rt", response = "response")
 # Expected rank order: HF (4.52) > LF (2.75) > NW (2.64) > VLF (1.80)
 # Note: NW > VLF because nonwords are easier to correctly reject than
 # very-low-frequency words are to correctly accept.
-formula_ddm_acc <- bmf(
+formula_trial_acc <- bmf(
   drift ~ 0 + freq + (0 + freq | id),
   bound ~ 0 + condition + (0 + condition | id),
   ndt   ~ 1 + (1 | id)
@@ -80,7 +80,7 @@ formula_ddm_acc <- bmf(
 # Response-coded (upper = "word"): drift sign reflects stimulus type --
 # positive for words, negative for nonwords. zr captures bias toward
 # saying "word" (0.5 = unbiased); expected: accuracy = 0.497, speed = 0.476.
-formula_ddm_resp <- bmf(
+formula_trial_resp <- bmf(
   drift ~ 0 + freq + (0 + freq | id),
   bound ~ 0 + condition + (0 + condition | id),
   ndt   ~ 1 + (1 | id),
@@ -91,11 +91,12 @@ formula_ddm_resp <- bmf(
 # 2) Model Fitting -------------------------------------------------------------
 ###############################################################################!
 
-# Expect long fitting times: ~17-21 hours per model on this dataset
-# (wall-clock, 5 chains in parallel); results are cached via `file`.
+# Expect long fitting times (tens of hours per model on this dataset; the
+# manuscript reads the measured wall-clock from the archived fits). Results
+# are cached via `file`.
 
 fit_ddm_acc <- bmm(
-  formula = formula_ddm_acc,
+  formula = formula_trial_acc,
   data    = data_accuracy_clean,
   model   = model_ddm,
   chains  = chains,
@@ -110,7 +111,7 @@ fit_ddm_acc <- bmm(
 )
 
 fit_ddm_resp <- bmm(
-  formula = formula_ddm_resp,
+  formula = formula_trial_resp,
   data    = data_response_clean,
   model   = model_ddm,
   chains  = chains,
@@ -139,12 +140,13 @@ rhat_resp <- max(brms::rhat(fit_ddm_resp), na.rm = TRUE)
 cat("Max Rhat (response-coded):", rhat_resp, "\n")
 
 ## 3.2) Posterior predictive checks --------------------------------------------
-# Observed data (dark line) vs. posterior simulations (light lines)
-p_pp_acc <- pp_check(fit_ddm_acc, ndraws = 50) + clean_plot()
+# All observables of the likelihood (RT, response, signed RT) from one joint
+# posterior predictive simulation; observed (dark) vs. simulated (light)
+p_pp_acc <- pp_check(fit_ddm_acc, resp_var = "all", ndraws = 50)
 ggsave(here("figures", "14_pp_check_acc.pdf"), p_pp_acc,
        width = 6.5, height = 4, device = "pdf")
 
-p_pp_resp <- pp_check(fit_ddm_resp, ndraws = 50) + clean_plot()
+p_pp_resp <- pp_check(fit_ddm_resp, resp_var = "all", ndraws = 50)
 ggsave(here("figures", "14_pp_check_resp.pdf"), p_pp_resp,
        width = 6.5, height = 4, device = "pdf")
 

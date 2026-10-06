@@ -1,6 +1,6 @@
 # Estimating Diffusion Model Parameters with the bmm R Package: A Tutorial
 
-Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters using the [bmm](https://venpopov.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — with progressively complex tutorials.
+Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters using the [bmm](https://venpopov.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — and shows that the hierarchical EZ-Diffusion Model evaluates condition effects on drift, boundary separation, and the relative starting point at a fraction of the cost of the trial-level approaches.
 
 ## Repository Structure
 
@@ -13,19 +13,24 @@ This GitHub repository contains the source code and data needed to reproduce all
 │   ├── tutorial-ddm-bmm.qmd
 │   └── references.bib
 │
-├── scripts/             Standalone R scripts for each tutorial
-│   ├── prepare_simulated_data.R              Generate simulated datasets
-│   ├── tutorial0_data_preprocessing.R        Data cleaning and summary stats
-│   ├── tutorial1_ezdm_3par.R                 EZ-Diffusion 3-parameter version
-│   ├── tutorial2_ezdm_4par.R                 EZ-Diffusion 4-parameter + model comparison
-│   ├── tutorial3_cswald.R                    Censored-Shifted Wald simple + competing risks
-│   ├── tutorial4_ddm.R                       Full DDM + cross-approach comparison
-│   └── 00_download_osf.R                     Download fitted models from OSF
+├── scripts/             Standalone R scripts, one per manuscript section
+│   ├── 00_download_osf.R                     Download fitted models from OSF
+│   ├── 01_prepare_lexical_data.R             Load, recode, and preprocess the lexical decision data
+│   ├── 03_figure_diffusion_schematic.R       DDM schematic (Figure 1)
+│   ├── 11_tutorial1_ezdm_3par.R              Part I, Tutorial 1: EZ-Diffusion 3-parameter version
+│   ├── 12_tutorial2_ezdm_4par.R              Part I, Tutorial 2: EZ-Diffusion 4-parameter version
+│   ├── 13_tutorial3_cswald.R                 Part II: Censored-Shifted Wald (simple + competing risks)
+│   ├── 14_tutorial4_ddm.R                    Part II: full DDM likelihood estimation
+│   ├── 15_cross_model_comparison.R           EZ-Diffusion frequency fits, Part III comparison figures
+│   ├── 20_prepare_simulated_data.R           Generate the two simulated datasets
+│   ├── 21_appendix_parameter_recovery.R      Appendix: recovery with an unbiased starting point
+│   └── 22_bias_recovery.R                    Part I: recovery with a biased starting point
 │
 ├── data/                Simulated and real datasets
 │
-└── functions/           Shared plotting utilities
-    └── clean_plot.R
+└── functions/           Shared plotting and extraction utilities
+    ├── clean_plot.R
+    └── extract_fixef.R
 ```
 
 ### Available on OSF only
@@ -40,17 +45,15 @@ The following directories are excluded from the GitHub repository because they c
 
 To reproduce locally, run the scripts in `scripts/` — fitted models will be cached in `output/` via the `file` argument in `bmm()`.
 
-## Tutorials
+## Structure of the Tutorial
 
-**Tutorial 0 — The Impact of Contaminants** (`tutorial0_data_preprocessing.R`): Demonstrates empirically how contaminant RTs (fast guesses, slow outliers) bias DDM parameter estimates using simulated data with known ground truth. Introduces `flag_contaminant_rts()` for contaminant detection and `ezdm_summary_stats()` for computing summary statistics with simple, mixture, and robust methods. Verifies that preprocessing restores accurate parameter recovery.
+The manuscript centers on the hierarchical EZ-Diffusion Model as the primary analysis and is organized in three parts, preceded by a data-preprocessing section that introduces `bmm`'s contaminant-handling functions (`flag_contaminant_rts()`, `ezdm_summary_stats()`, `adjust_ezdm_accuracy()`) on the lexical decision data of Wagenmakers et al. (2008).
 
-**Tutorial 1 — EZ-Diffusion Model (3-Parameter)** (`tutorial1_ezdm_3par.R`): Introduces the complete DDM estimation workflow using the EZ-Diffusion Model with three parameters (drift, bound, ndt) on properly cleaned data. Covers model specification with `ezdm()`, fitting with `bmm()`, convergence diagnostics, posterior predictive checks, and hypothesis testing.
+**Part I — The EZ-Diffusion Model.** Tutorial 1 (`11_tutorial1_ezdm_3par.R`) fits the three-parameter version to the accuracy-coded data, tests condition effects on drift and bound, and refines the stimulus contrast to four word-frequency levels (`15_cross_model_comparison.R`, section 1). Tutorial 2 (`12_tutorial2_ezdm_4par.R`) switches to response coding and the four-parameter version to estimate the relative starting point. A recovery study (`22_bias_recovery.R`, data from `20_prepare_simulated_data.R`) shows what the four-parameter version recovers when the starting point is biased, against the three-parameter version and the full DDM.
 
-**Tutorial 2 — EZ-Diffusion Model (4-Parameter)** (`tutorial2_ezdm_4par.R`): Extends the EZ-Diffusion Model by adding the relative starting point (`zr`) parameter. Demonstrates how response biases can be estimated and compares the 3-parameter and 4-parameter versions.
+**Part II — Trial-Level Estimation.** Tutorial 3 (`13_tutorial3_cswald.R`, `14_tutorial4_ddm.R`) fits the Censored-Shifted Wald (simple and competing-risks versions) and the full DDM at the same specification Part I arrived at.
 
-**Tutorial 3 — Censored-Shifted Wald** (`tutorial3_cswald.R`): Transitions to trial-level modeling with the Censored-Shifted Wald, a computationally efficient trial-level approach for estimating DDM parameters. Demonstrates both the simple version (censored approach for low-error tasks) and the competing-risks version. Compares parameter estimates against the EZ-Diffusion results from Tutorial 1.
-
-**Tutorial 4 — Full DDM Likelihood Estimation** (`tutorial4_ddm.R`): Fits the full DDM using the Wiener first-passage time likelihood and systematically compares parameter recovery across all three estimation approaches. Includes a computational cost comparison, a real data application, and a practical decision tree for approach selection.
+**Part III — Comparison and Practical Guidelines.** `15_cross_model_comparison.R` compares the three approaches parameter by parameter and reports their computational cost; the manuscript turns the comparison into guidelines. The appendix (`21_appendix_parameter_recovery.R`) reports parameter recovery with an unbiased starting point.
 
 ## Getting Started
 
@@ -58,12 +61,14 @@ Install required packages:
 
 ```r
 install.packages("pacman")
-pacman::p_load(here, bmm, brms, cmdstanr, tidyverse, tidybayes, patchwork)
+pacman::p_load(here, bmm, brms, cmdstanr, tidyverse, tidybayes, patchwork, rtdists)
 ```
+
+The fits in this repository use `bmm` built from `origin/407-ezdm-cumulants` at commit `119ac5e4` (the cumulants likelihood for `ezdm` and the vectorized `cswald` likelihood). Until that branch is released, install it with `remotes::install_github("popov-lab/bmm@119ac5e4")`; older `bmm` versions fit a different `ezdm` likelihood and do not reproduce the reported numbers. The raw data are `speed_acc` from the `rtdists` package.
 
 [cmdstanr](https://mc-stan.org/cmdstanr/) requires a working CmdStan installation. See `cmdstanr::install_cmdstan()`.
 
-Open the RStudio project. To use pre-fitted models without re-running the analyses, first run `scripts/00_download_osf.R` to download cached model objects from OSF into `output/`. The tutorial scripts use the `file` argument in `bmm()`, so they will automatically load cached fits when available.
+Open the RStudio project. To use pre-fitted models without re-running the analyses, first run `scripts/00_download_osf.R` to download cached model objects from OSF into `output/` (not yet functional: the OSF project is still to be set up). The tutorial scripts use the `file` argument in `bmm()`, so they will automatically load cached fits when available.
 
 ## References
 

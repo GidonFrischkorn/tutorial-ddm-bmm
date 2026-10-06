@@ -1,11 +1,13 @@
-#' Tutorial 3: Trial-Level Modeling with the CSWALD
+#' Part II (Tutorial 3): The Censored-Shifted Wald at the freq specification
 #'
-#' Fits both CSWALD versions to Wagenmakers et al. (2008) lexical decision data:
+#' Fits both CSWALD versions to Wagenmakers et al. (2008) lexical decision data
+#' with the same four-level freq variable on drift as the DDM (script 14), so
+#' that Part III can compare the approaches parameter by parameter:
 #' - Simple (censored): accuracy-coded, appropriate for low error rates (<20%)
 #' - Competing-risks (crisk): response-coded, estimates zr, handles higher errors
 #'
-#' Demonstrates when to use each version and the known ~10% bound
-#' underestimation in the crisk version.
+#' The composite posterior predictive check of all four trial-level fits is
+#' produced by script 15, which loads the DDM fits as well.
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -31,27 +33,38 @@ max_treedepth <- 12
 
 # -- Load preprocessed data ---------------------------------------------------
 # Run scripts/01_prepare_lexical_data.R once first to generate these files
+# The CSVs already contain the 4-level freq variable; restore its level order
+# after reading (read_csv returns plain character columns).
+freq_levels <- c("high", "low", "very_low", "nonword")
+
 data_accuracy_clean <- read_csv(here("data", "lexical_accuracy_triallevel.csv"),
-                                 show_col_types = FALSE)
+                                 show_col_types = FALSE) |>
+  mutate(freq = factor(freq, levels = freq_levels))
 data_response_clean <- read_csv(here("data", "lexical_response_triallevel.csv"),
-                                 show_col_types = FALSE)
+                                 show_col_types = FALSE) |>
+  mutate(freq = factor(freq, levels = freq_levels))
 
 ###############################################################################!
 # 1) Model Specification -------------------------------------------------------
 ###############################################################################!
 
 # Simple version: treats errors as censored correct responses. Use when error
-# rates are below ~20% and zr is not needed. In this dataset, accuracy-coded
-# error rates range from 4% to 19% -- within the limit. Its bound estimates
-# are on the same scale as the EZDM and DDM.
+# rates are below ~20% and zr is not needed. At the freq level the
+# accuracy-coded error rates run from 1.8% (high-frequency words, accuracy
+# emphasis) to 18.7% in seven of eight cells and reach 30.6% for very-low-
+# frequency words under speed emphasis; the specification is kept for
+# comparability and the manuscript says so. NOTE: the simple version's bound
+# is the distance from the starting point to the correct boundary -- half the
+# separation ezdm and ddm report -- so it is doubled below.
 model_simple <- cswald(
   rt       = "rt",
   response = "response",
   version  = "simple"
 )
 
-formula_simple <- bmf(
-  drift ~ 0 + stim_cat + (0 + stim_cat | id),
+# Same accuracy-coded formula as the DDM in script 14
+formula_trial_acc <- bmf(
+  drift ~ 0 + freq + (0 + freq | id),
   bound ~ 0 + condition + (0 + condition | id),
   ndt   ~ 1 + (1 | id)
 )
@@ -59,15 +72,17 @@ formula_simple <- bmf(
 # Competing-risks (crisk) version: models correct AND error RTs as two racing
 # accumulators sharing one ndt. Use at higher error rates, or whenever the
 # relative starting point zr is of interest (here: response-coded data).
-# Known limitation: bound is underestimated by ~10% relative to the DDM.
+# On the lexical data (2026-09 refit, vectorized likelihood) its bound agreed
+# with the DDM's to within 2%; the ~10% underestimation of the April fits did not recur.
 model_crisk <- cswald(
   rt       = "rt",
   response = "response",
   version  = "crisk"
 )
 
-formula_crisk <- bmf(
-  drift ~ 0 + stim_cat + (0 + stim_cat | id),
+# Same response-coded formula as the DDM in script 14
+formula_trial_resp <- bmf(
+  drift ~ 0 + freq + (0 + freq | id),
   bound ~ 0 + condition + (0 + condition | id),
   ndt   ~ 1 + (1 | id),
   zr    ~ 0 + condition + (0 + condition | id)
@@ -78,7 +93,7 @@ formula_crisk <- bmf(
 ###############################################################################!
 
 fit_cswald_simple <- bmm(
-  formula = formula_simple,
+  formula = formula_trial_acc,
   data    = data_accuracy_clean,
   model   = model_simple,
   chains  = chains,
@@ -93,7 +108,7 @@ fit_cswald_simple <- bmm(
 )
 
 fit_cswald_crisk <- bmm(
-  formula = formula_crisk,
+  formula = formula_trial_resp,
   data    = data_response_clean,
   model   = model_crisk,
   chains  = chains,
@@ -122,12 +137,13 @@ rhat_crisk <- max(brms::rhat(fit_cswald_crisk), na.rm = TRUE)
 cat("Max Rhat (crisk):", rhat_crisk, "\n")
 
 ## 3.2) Posterior predictive checks --------------------------------------------
-# Observed data (dark line) vs. posterior simulations (light lines)
-p_pp_simple <- pp_check(fit_cswald_simple, ndraws = 50) + clean_plot()
+# All observables of the likelihood (RT, response, signed RT) from one joint
+# posterior predictive simulation; observed (dark) vs. simulated (light)
+p_pp_simple <- pp_check(fit_cswald_simple, resp_var = "all", ndraws = 50)
 ggsave(here("figures", "13_pp_check_simple.pdf"), p_pp_simple,
        width = 6.5, height = 4, device = "pdf")
 
-p_pp_crisk <- pp_check(fit_cswald_crisk, ndraws = 50) + clean_plot()
+p_pp_crisk <- pp_check(fit_cswald_crisk, resp_var = "all", ndraws = 50)
 ggsave(here("figures", "13_pp_check_crisk.pdf"), p_pp_crisk,
        width = 6.5, height = 4, device = "pdf")
 
@@ -135,10 +151,15 @@ ggsave(here("figures", "13_pp_check_crisk.pdf"), p_pp_crisk,
 fixef_simple <- fixef(fit_cswald_simple)
 print(round(fixef_simple, 3))
 
-# Drift by stimulus category (identity link)
-cat("\nCSWALD simple -- drift estimates:\n")
-cat("  Word:   ", round(fixef_simple["drift_stim_catword", "Estimate"], 3), "\n")
-cat("  Nonword:", round(fixef_simple["drift_stim_catnonword", "Estimate"], 3), "\n")
+# Drift by frequency level. The simple version estimates drift on the LOG
+# scale (its single accumulator must drift toward the boundary), so
+# back-transform with exp() before reading or comparing the values; the
+# crisk version, ezdm, and ddm use an identity link for drift.
+cat("\nCSWALD simple -- drift estimates by frequency (exp of the log-scale estimate):\n")
+for (lev in freq_levels) {
+  cat(sprintf("  %-9s %6.3f\n", lev,
+              exp(fixef_simple[paste0("drift_freq", lev), "Estimate"])))
+}
 
 # Bound by condition (log link -> exponentiate). The simple version estimates
 # the distance from the starting point to the correct boundary, which is half
@@ -162,15 +183,18 @@ cat("  Accuracy:", round(plogis(fixef_crisk["zr_conditionaccuracy", "Estimate"])
 # spread_draws() + pivot_longer(): one row per posterior draw, stacked by
 # coefficient (see Tutorial 1 for details)
 draws_drift <- fit_cswald_simple |>
-  spread_draws(b_drift_stim_catword, b_drift_stim_catnonword) |>
+  spread_draws(b_drift_freqhigh, b_drift_freqlow,
+               b_drift_freqvery_low, b_drift_freqnonword) |>
   pivot_longer(cols = starts_with("b_drift"),
-               names_to = "stim_cat", values_to = "drift") |>
-  mutate(stim_cat = str_remove(stim_cat, "b_drift_stim_cat") |> str_to_title())
+               names_to = "freq", values_to = "drift") |>
+  mutate(freq = str_remove(freq, "b_drift_freq") |>
+           factor(levels = freq_levels),
+         drift = exp(drift))  # log link -> natural scale
 
 p_drift <- draws_drift |>
-  ggplot(aes(x = drift, y = stim_cat, fill = stim_cat)) +
+  ggplot(aes(x = drift, y = freq, fill = freq)) +
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
-  scale_fill_manual(values = eam_palette[1:2]) +
+  scale_fill_manual(values = eam_palette[1:4]) +
   labs(x = expression("Drift ("*delta*") - CSWALD simple"), y = "") +
   guides(fill = "none") +
   clean_plot()
@@ -201,11 +225,11 @@ ggsave(here("figures", "13_param_estimates.pdf"),
 # Savage-Dickey equality tests (see Tutorial 1); the BF against equality is
 # 1 / Evid.Ratio. These are the Bayes Factors reported in the manuscript.
 
-# Test: does drift differ between words and nonwords?
+# Test: does drift differ between high- and very-low-frequency words?
 hyp_drift <- hypothesis(fit_cswald_simple,
-  "drift_stim_catword = drift_stim_catnonword")
+  "drift_freqhigh = drift_freqvery_low")
 print(hyp_drift)
-cat("\nBF against equal drift (word vs. nonword):",
+cat("\nBF against equal drift (high vs. very low frequency):",
     round(1 / hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
 
 # Test: does bound differ between accuracy and speed emphasis?

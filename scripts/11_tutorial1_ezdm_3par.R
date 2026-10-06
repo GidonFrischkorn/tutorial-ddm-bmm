@@ -78,12 +78,26 @@ summary(fit_acc_ezdm)
 rhat_max <- max(brms::rhat(fit_acc_ezdm), na.rm = TRUE)
 cat("Max Rhat:", rhat_max, "\n")
 
-## 3.2) Posterior predictive check ---------------------------------------------
-# Overlays data simulated from the posterior (light lines) on the observed
-# data (dark line); close overlap indicates adequate model fit
-p_pp <- pp_check(fit_acc_ezdm, ndraws = 50) + clean_plot()
+## 3.2) Posterior predictive checks --------------------------------------------
+# One check per observable the EZ-Diffusion likelihood explains: mean RT, RT
+# variance, and the proportion of upper-boundary responses (pp_check_vars()
+# lists them). Each panel shows the observed value of every design cell (dark
+# points) with its posterior predictive interval (light). All panels use the
+# same 50 posterior draws.
+pp_vars <- pp_check_vars(fit_acc_ezdm)
+# Short panel titles; with accuracy coding the upper boundary is "correct"
+pp_labels <- c(mean_rt = "Mean RT (s)", var_rt = "RT variance (s\u00b2)",
+               mean_pc = "Proportion correct")
+set.seed(1)
+pp_draws <- sample(ndraws(fit_acc_ezdm), 50)
+p_pp <- map2(pp_vars$resp_var, pp_labels[pp_vars$resp_var], \(v, lbl)
+  pp_check(fit_acc_ezdm, resp_var = v, draw_ids = pp_draws) +
+    labs(title = lbl, subtitle = NULL, x = "Design cell") + clean_plot()
+) |>
+  wrap_plots(nrow = 1) + plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
 ggsave(here("figures", "11_pp_check.pdf"), p_pp,
-       width = 6.5, height = 4, device = "pdf")
+       width = 6.5, height = 3.2, device = "pdf")
 
 ## 3.3) Parameter estimates ----------------------------------------------------
 fixef_est <- fixef(fit_acc_ezdm)

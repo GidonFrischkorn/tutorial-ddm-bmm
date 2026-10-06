@@ -100,15 +100,30 @@ summary(fit_resp_ezdm)
 rhat_max <- max(brms::rhat(fit_resp_ezdm), na.rm = TRUE)
 cat("Max Rhat:", rhat_max, "\n")
 
-## 3.2) Posterior predictive check ---------------------------------------------
-# Observed data (dark line) vs. posterior simulations (light lines).
-# Sparse minority-boundary cells (see the counts in section 0) can
-# occasionally produce NA predictions for the 4par model; fixing the seed
-# makes the check reproducible.
+## 3.2) Posterior predictive checks --------------------------------------------
+# One check per observable of the 4par likelihood: mean RT and RT variance at
+# each boundary, and the proportion of upper-boundary ("word") responses.
+# Observed value per design cell (dark) with its posterior predictive interval
+# (light), same 50 posterior draws in every panel. Where a simulated cell has
+# fewer than two responses at a boundary, pp_check() drops that posterior draw
+# (with a warning), so sparse minority-boundary cells stay in the check.
+pp_vars <- pp_check_vars(fit_resp_ezdm)
+# Short panel titles; with response coding the upper boundary is "word"
+pp_labels <- c(mean_rt_upper = "Mean RT (s), word responses",
+               mean_rt_lower = "Mean RT (s), nonword responses",
+               var_rt_upper  = "RT variance (s\u00b2), word responses",
+               var_rt_lower  = "RT variance (s\u00b2), nonword responses",
+               mean_pc       = "Proportion of word responses")
 set.seed(1)
-p_pp <- pp_check(fit_resp_ezdm, ndraws = 50) + clean_plot()
+pp_draws <- sample(ndraws(fit_resp_ezdm), 50)
+p_pp <- map2(pp_vars$resp_var, pp_labels[pp_vars$resp_var], \(v, lbl)
+  pp_check(fit_resp_ezdm, resp_var = v, draw_ids = pp_draws) +
+    labs(title = lbl, subtitle = NULL, x = "Design cell") + clean_plot()
+) |>
+  wrap_plots(ncol = 2) + plot_layout(guides = "collect") &
+  theme(legend.position = "bottom")
 ggsave(here("figures", "12_pp_check.pdf"), p_pp,
-       width = 6.5, height = 4, device = "pdf")
+       width = 6.5, height = 7, device = "pdf")
 
 ## 3.3) Parameter estimates ----------------------------------------------------
 fixef_est <- fixef(fit_resp_ezdm)

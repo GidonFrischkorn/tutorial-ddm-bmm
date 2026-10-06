@@ -1,18 +1,14 @@
 #' Prepare Simulated Data for EAM Tutorials
 #'
 #' Generates trial-level data from known DDM parameters using rddm().
-#' Produces two versions:
-#'   1) Clean data -- ground truth for parameter recovery
-#'   2) Contaminated data -- with injected contaminants from three processes
+#' Produces two datasets:
+#'   1) An easy/hard design with an unbiased starting point -- ground truth
+#'      for the parameter recovery study in the appendix (script 21)
+#'   2) A stimulus x bias design with a biased starting point (zr = 0.60 or
+#'      0.40) -- ground truth for the recovery study in Part I (script 22)
 #'
-#' The three contaminant processes are the ones evaluated in the Monte Carlo
-#' study of scripts/02_simulation_contaminant_methods.R, so the demonstration
-#' and the simulation describe the same phenomena. Each contaminated trial
-#' carries a contaminant_type label, which lets Tutorial 0 show where each
-#' process falls relative to the core RT distribution.
-#'
-#' The contaminated data is used in Tutorial 0 to demonstrate how contaminants
-#' bias EAM parameter estimates. All subsequent tutorials use the cleaned data.
+#' The second dataset is generated after the first, so adding it left the
+#' first dataset's draws unchanged (verified by diffing the written CSVs).
 
 ###############################################################################!
 # 0) R Setup: Packages ---------------------------------------------------------
@@ -83,79 +79,9 @@ data_clean <- subject_params |>
     ndt_true   = ndt_subj
   )
 
-###############################################################################!
-# 3) Inject Contaminants -------------------------------------------------------
-###############################################################################!
-
-# Create a contaminated version of the data by replacing 3% of trials with
-# each of three contaminant processes (9% in total). The three processes are
-# the ones evaluated in the Monte Carlo study (Appendix A) and differ in where
-# they fall relative to the core RT distribution:
-#
-#   a) Leading-edge anticipations: each subject draws a depth x_i ~ U(0.1, 0.5)
-#      (shared across conditions); RT ~ U((1 - x_i) ndt_subj, (1 + x_i) ndt_subj)
-#      with accuracy at chance -- premature responses that straddle the leading
-#      edge of the core RT distribution, so neither hard cutoffs nor the mixture
-#      model gets a free case (Lerche, Voss & Nagler, 2017, adapted to centre
-#      on ndt; the v7 construct of the Monte Carlo study).
-#   b) Delayed start-ups: Uniform(0, 2 s) added to the RT the decision process
-#      produced, leaving the response untouched -- an attentional lapse that
-#      delays the start of processing, which places part of the contaminants
-#      inside the core distribution (Ratcliff & Tuerlinckx, 2002).
-#   c) Informationless responses: the trial is redrawn from the same DDM with
-#      drift = 0 -- a response given without stimulus information, at ordinary
-#      speed and with accuracy at chance, which overlaps the core completely
-#      (Vandekerckhove, Tuerlinckx, & Lee, 2008).
-
-contam_rate <- 0.03  # per process, per participant x condition cell
-
-data_contaminated <- data_clean |>
-  group_by(id, condition) |>
-  mutate(
-    n = n(),
-    contam_draw = sample(n()),
-    k = round(n * contam_rate),
-    contaminant_type = case_when(
-      contam_draw <= k     ~ "leading-edge anticipation",
-      contam_draw <= 2 * k ~ "delayed start-up",
-      contam_draw <= 3 * k ~ "informationless",
-      .default = "none"
-    )
-  ) |>
-  ungroup()
-
-# Leading-edge anticipations: each subject draws an anticipation depth
-# x_i ~ U(0.1, 0.5), shared across conditions; contaminated RTs fall in a
-# uniform band around the subject's ndt, response at chance
-subj_x <- tibble(id = 1:n_subjects, x_i = runif(n_subjects, 0.1, 0.5))
-data_contaminated <- data_contaminated |> left_join(subj_x, by = "id")
-is_fast <- data_contaminated$contaminant_type == "leading-edge anticipation"
-data_contaminated$rt[is_fast] <- runif(
-  sum(is_fast),
-  (1 - data_contaminated$x_i[is_fast]) * data_contaminated$ndt_true[is_fast],
-  (1 + data_contaminated$x_i[is_fast]) * data_contaminated$ndt_true[is_fast]
-)
-data_contaminated$response[is_fast] <- rbinom(sum(is_fast), 1, 0.5)
-
-# Delayed start-ups: add a uniform delay, keep the response
-is_delay <- data_contaminated$contaminant_type == "delayed start-up"
-data_contaminated$rt[is_delay] <- data_contaminated$rt[is_delay] +
-  runif(sum(is_delay), 0, 2)
-
-# Informationless responses: redraw the trial with drift = 0
-is_guess <- data_contaminated$contaminant_type == "informationless"
-redraw <- rddm(sum(is_guess), drift = 0,
-               bound = data_contaminated$bound_true[is_guess],
-               ndt = data_contaminated$ndt_true[is_guess], zr = 0.5)
-data_contaminated$rt[is_guess]       <- redraw$rt
-data_contaminated$response[is_guess] <- redraw$response
-
-data_contaminated <- data_contaminated |>
-  mutate(is_contaminant = contaminant_type != "none") |>
-  select(id, condition, trial, rt, response, is_contaminant, contaminant_type)
 
 ###############################################################################!
-# 4) Compute EZDM Summary Statistics -------------------------------------------
+# 3) Compute EZDM Summary Statistics -------------------------------------------
 ###############################################################################!
 
 # Compute summary statistics from the clean data for EZDM tutorials
@@ -175,19 +101,13 @@ data_ezdm_4par <- data_clean |>
   )
 
 ###############################################################################!
-# 5) Save Data -----------------------------------------------------------------
+# 4) Save Data -----------------------------------------------------------------
 ###############################################################################!
 
 # Clean trial-level data (ground truth for parameter recovery)
 write_csv(
   data_clean |> select(id, condition, trial, rt, response),
   here("data", "simulated_rt_data_clean.csv")
-)
-
-# Contaminated trial-level data (for Tutorial 0 bias demonstration)
-write_csv(
-  data_contaminated,
-  here("data", "simulated_rt_data_contaminated.csv")
 )
 
 # Aggregated summary statistics for EZDM (3par) -- from clean data
@@ -204,4 +124,76 @@ write_csv(
   subject_params |>
     select(id, condition, drift_subj, bound_subj, ndt_subj),
   here("data", "true_parameters_subject.csv")
+)
+
+###############################################################################!
+# 5) Simulated Data With a Biased Starting Point -------------------------------
+###############################################################################!
+
+# Second dataset, for the recovery study in Part I of the manuscript. Two
+# stimulus types set the direction of drift (+delta for A, -delta for B), so
+# that with response coding (upper = an "A" response) both boundaries are
+# reached often; two bias conditions set the relative starting point toward
+# the "A" boundary (zr = 0.60) or the "B" boundary (zr = 0.40). Bound and ndt
+# are those of the design above and do not vary by condition.
+n_trials_bias <- 250
+
+bias_params <- expand_grid(
+  stimulus = c("A", "B"),
+  bias     = c("A", "B")
+) |>
+  mutate(
+    drift = if_else(stimulus == "A", 0.6, -0.6),
+    bound = 1.5,
+    ndt   = 0.3,
+    zr    = if_else(bias == "A", 0.60, 0.40),
+    n_trials_cell = n_trials_bias
+  )
+
+# Between-subject spreads: 0.25 on |drift|, 0.15 on log bound, 0.03 s on ndt,
+# and 0.2 on the logit of zr. Drift varies less than in the design above so
+# that every cell keeps enough responses at its minority boundary for the
+# boundary-specific moments the 4par EZ-Diffusion Model needs.
+tau_drift_bias <- 0.25
+tau_zr_bias    <- 0.20
+
+subject_bias <- tibble(id = 1:n_subjects) |>
+  mutate(
+    drift_re   = rnorm(n(), 0, tau_drift_bias),
+    bound_subj = 1.5 * exp(rnorm(n(), 0, tau_bound)),
+    ndt_subj   = pmax(0.1, 0.3 + rnorm(n(), 0, tau_ndt)),
+    zr_re      = rnorm(n(), 0, tau_zr_bias)
+  ) |>
+  expand_grid(bias_params) |>
+  mutate(
+    drift_subj = sign(drift) * (abs(drift) + drift_re),
+    zr_subj    = plogis(qlogis(zr) + zr_re)
+  )
+
+data_bias <- subject_bias |>
+  rowwise() |>
+  reframe(
+    id = id, stimulus = stimulus, bias = bias,
+    trial = 1:n_trials_bias,
+    rddm(n_trials_bias, drift = drift_subj, bound = bound_subj,
+         ndt = ndt_subj, zr = zr_subj)
+  ) |>
+  mutate(response = ifelse(response == 1, "upper", "lower"))
+
+# The 4par summary statistics need both boundaries in every cell: report the
+# minority-boundary counts and stop if any cell is too sparse to use.
+minority_bias <- data_bias |>
+  count(id, stimulus, bias, response) |>
+  pivot_wider(names_from = response, values_from = n, values_fill = 0) |>
+  mutate(minority = pmin(upper, lower))
+cat("Bias dataset -- minority-boundary responses per cell: min",
+    min(minority_bias$minority), "| median", median(minority_bias$minority), "\n")
+stopifnot(min(minority_bias$minority) >= 15)
+
+write_csv(data_bias, here("data", "simulated_rt_data_bias.csv"))
+write_csv(bias_params, here("data", "true_parameters_bias.csv"))
+write_csv(
+  subject_bias |>
+    select(id, stimulus, bias, drift_subj, bound_subj, ndt_subj, zr_subj),
+  here("data", "true_parameters_bias_subject.csv")
 )

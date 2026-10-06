@@ -14,4 +14,5 @@ dir.create(here("output"), showWarnings = FALSE)
 # osf_files <- osf_ls_files(osf_project, path = "output")
 # osf_download(osf_files, path = here("output"), conflicts = "skip")
 
-message("Download complete. Fitted model objects are in output/.")
+message("OSF download is not set up yet: nothing was downloaded. ",
+        "Run the tutorial scripts to fit the models (see README).")

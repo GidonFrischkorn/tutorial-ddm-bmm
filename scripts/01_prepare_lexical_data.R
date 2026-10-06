@@ -14,7 +14,7 @@
 #'   - data_acc_ezdm:       EZDM 3par summary stats (accuracy-coded)
 #'   - data_resp_ezdm:      EZDM 4par summary stats (response-coded)
 
-pacman::p_load(here, bmm, tidyverse, SimDesign)
+pacman::p_load(here, bmm, tidyverse, rtdists)
 
 # -- Load raw data ------------------------------------------------------------
 data("speed_acc", package = "rtdists")
@@ -106,8 +106,12 @@ data_accuracy <- data_accuracy |>
 # Two approaches are available for trial exclusion:
 #   Threshold-based: exclude if contam_prob > 0.5 (deterministic)
 #   Probabilistic:   exclude with probability = contam_prob (stochastic)
-# We use threshold-based as the default for reproducibility.
-# See 10_tutorial0_data_preprocessing.R for a comparison of both approaches.
+# We use threshold-based as the default for reproducibility. The probabilistic
+# alternative would replace the filter below with (set a seed first):
+#   data_accuracy_clean <- data_accuracy |> filter(runif(n()) > contam_prob)
+# and would need a unique trial id for the semi_join below, because it can keep
+# one of two trials that share id, condition, stim_cat, and rt and drop the other.
+stopifnot(!anyNA(data_accuracy$contam_prob))  # no cell may be dropped silently
 data_accuracy_clean <- data_accuracy |> filter(contam_prob <= 0.5)
 data_response_clean <- data_response |>
   semi_join(data_accuracy_clean, by = c("id", "condition", "stim_cat", "rt"))
