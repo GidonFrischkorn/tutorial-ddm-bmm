@@ -1,6 +1,6 @@
 # Estimating Diffusion Model Parameters with the bmm R Package: A Tutorial
 
-Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters using the [bmm](https://venpopov.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — and shows that the hierarchical EZ-Diffusion Model evaluates condition effects on drift, boundary separation, and the relative starting point at a fraction of the cost of the trial-level approaches.
+Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters using the [bmm](https://popov-lab.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches — the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation — and shows that the hierarchical EZ-Diffusion Model evaluates condition effects on drift, boundary separation, and the relative starting point at a fraction of the cost of the trial-level approaches.
 
 ## Repository Structure
 
@@ -53,7 +53,7 @@ The manuscript centers on the hierarchical EZ-Diffusion Model as the primary ana
 
 **Part II — Trial-Level Estimation.** Tutorial 3 (`13_tutorial3_cswald.R`, `14_tutorial4_ddm.R`) fits the Censored-Shifted Wald (simple and competing-risks versions) and the full DDM at the same specification Part I arrived at.
 
-**Part III — Comparison and Practical Guidelines.** `15_cross_model_comparison.R` compares the three approaches parameter by parameter and reports their computational cost; the manuscript turns the comparison into guidelines. The appendix (`21_appendix_parameter_recovery.R`) reports parameter recovery with an unbiased starting point.
+**Part III — Comparison and Practical Guidelines.** `15_cross_model_comparison.R` compares the three approaches parameter by parameter and reports their computational cost; the manuscript turns the comparison into guidelines. It also refits the response-coded four-parameter EZ-Diffusion Model from mixture moments (to separate the aggregation-method offset from the approach) and applies the same per-cell 90%-interval check used for the EZ-Diffusion fits to the four trial-level fits, so fit quality is judged the same way for all three approaches. The appendix (`21_appendix_parameter_recovery.R`) reports parameter recovery with an unbiased starting point.
 
 ## Getting Started
 
@@ -64,7 +64,7 @@ install.packages("pacman")
 pacman::p_load(here, bmm, brms, cmdstanr, tidyverse, tidybayes, patchwork, rtdists)
 ```
 
-The fits in this repository use `bmm` built from `origin/407-ezdm-cumulants` at commit `119ac5e4` (the cumulants likelihood for `ezdm` and the vectorized `cswald` likelihood). Until that branch is released, install it with `remotes::install_github("popov-lab/bmm@119ac5e4")`; older `bmm` versions fit a different `ezdm` likelihood and do not reproduce the reported numbers. The raw data are `speed_acc` from the `rtdists` package.
+The `ezdm` fits in this repository require the development version of `bmm` (1.3.2.9000), which carries the cumulants likelihood for `ezdm` (issue #407) and keeps design cells whose minority boundary has no usable RT summaries (#430). Until the next release, install it with `remotes::install_github("popov-lab/bmm@186250e0")` (`origin/develop`, 2026-10-08); released versions up to 1.3.2 fit a different `ezdm` likelihood and do not reproduce the reported numbers. The trial-level fits (`cswald`, `ddm`) are unaffected by these changes. The raw data are `speed_acc` from the `rtdists` package.
 
 [cmdstanr](https://mc-stan.org/cmdstanr/) requires a working CmdStan installation. See `cmdstanr::install_cmdstan()`.
 
@@ -76,7 +76,7 @@ Open the RStudio project. To use pre-fitted models without re-running the analys
 - Wagenmakers, E.-J., van der Maas, H. L. J., & Grasman, R. P. P. P. (2007). An EZ-diffusion model for response time and accuracy. *Psychonomic Bulletin & Review, 14*(1), 3–22.
 - Boag, R. J., et al. (2025). An expert guide to planning experimental tasks for evidence-accumulation modeling. *Advances in Methods and Practices in Psychological Science, 8*(2), 1–41.
 - Frischkorn, G. T. & Popov, V. (2025). A tutorial for estimating Bayesian hierarchical mixture models for visual working memory tasks. *Behavior Research Methods*.
-- bmm package: [https://venpopov.github.io/bmm/](https://venpopov.github.io/bmm/)
+- bmm package: [https://popov-lab.github.io/bmm/](https://popov-lab.github.io/bmm/)
 
 ## OSF Repository
 

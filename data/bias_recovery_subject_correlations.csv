@@ -1,17 +1,17 @@
 model,parameter,r
-EZ-Diffusion (4par),Drift (A),0.9876434134109381
-EZ-Diffusion (4par),Drift (B),0.9882592598916436
-EZ-Diffusion (4par),Bound,0.9928416148514206
-EZ-Diffusion (4par),NDT,0.9580820090690635
-EZ-Diffusion (4par),Start (bias A),0.9810960094156375
-EZ-Diffusion (4par),Start (bias B),0.9797207032620123
-EZ-Diffusion (3par),Drift (A),0.9003570325581985
-EZ-Diffusion (3par),Drift (B),0.9270134388346174
-EZ-Diffusion (3par),Bound,0.991597055552989
-EZ-Diffusion (3par),NDT,0.9370600237124453
+EZ-Diffusion (4par),Drift (A),0.9870485991792116
+EZ-Diffusion (4par),Drift (B),0.9879661971185809
+EZ-Diffusion (4par),Bound,0.992800417229238
+EZ-Diffusion (4par),NDT,0.9585009247943493
+EZ-Diffusion (4par),zr (A),0.9822131915853427
+EZ-Diffusion (4par),zr (B),0.9806671503258336
+EZ-Diffusion (3par),Drift (A),0.8996781925497239
+EZ-Diffusion (3par),Drift (B),0.9255009301711509
+EZ-Diffusion (3par),Bound,0.99158402469679
+EZ-Diffusion (3par),NDT,0.9384133157097566
 Full DDM,Drift (A),0.9877732956299183
 Full DDM,Drift (B),0.9873969856440489
 Full DDM,Bound,0.9951262623798155
 Full DDM,NDT,0.9918005213735662
-Full DDM,Start (bias A),0.9869120689499055
-Full DDM,Start (bias B),0.9872862088415677
+Full DDM,zr (A),0.9869120689499055
+Full DDM,zr (B),0.9872862088415677

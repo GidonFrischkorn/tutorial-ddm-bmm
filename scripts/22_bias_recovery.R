@@ -188,10 +188,10 @@ p_group <- ggplot(group_recovery, aes(x = level, y = estimate,
                   position = position_dodge(width = 0.5), size = 0.5) +
   facet_wrap(~ parameter, scales = "free", nrow = 1,
              labeller = labeller(
-               parameter = c(drift = "Drift (by stimulus)",
+               parameter = c(drift = "Drift (stimulus)",
                              bound = "Bound",
                              ndt = "NDT",
-                             zr = "Starting point (by bias)"))) +
+                             zr = "Start (bias)"))) +
   scale_color_manual(values = eam_palette[c(1, 2, 4)]) +
   labs(x = NULL, y = "Estimate", color = "Model", shape = "Model") +
   clean_plot()
@@ -247,8 +247,9 @@ true_subject <- bind_rows(
 )
 
 param_levels <- c("drift_A", "drift_B", "bound", "ndt", "zr_A", "zr_B")
+# short enough for six panels across 6.5 in (the caption spells them out)
 param_labels <- c("Drift (A)", "Drift (B)", "Bound", "NDT",
-                  "Start (bias A)", "Start (bias B)")
+                  "zr (A)", "zr (B)")
 
 subject_recovery <- subject_recovery |>
   left_join(true_subject, by = c("id", "parameter")) |>
@@ -279,10 +280,15 @@ recovery_row <- function(model_name, x_title = FALSE, y_title = FALSE) {
               color = model_colors[[model_name]],
               hjust = -0.1, vjust = 1.3, size = 3) +
     facet_wrap(~ parameter, nrow = 1, scales = "free", drop = TRUE) +
+    # six narrow panels: fewer, smaller tick labels so they do not overlap
+    # (the theme() must follow clean_plot(), which would otherwise reset it)
+    scale_x_continuous(n.breaks = 3) +
+    scale_y_continuous(n.breaks = 3) +
     labs(title = model_name,
          x = if (x_title) "True value" else NULL,
          y = if (y_title) "Recovered estimate" else NULL) +
-    clean_plot()
+    clean_plot() +
+    theme(axis.text = element_text(size = 6))
 }
 
 p_subject <- recovery_row("EZ-Diffusion (4par)") /

@@ -3,7 +3,7 @@
 #' Shared data preparation script sourced by all tutorial scripts.
 #' Loads the speed_acc dataset from rtdists, creates accuracy-coded and
 #' response-coded versions, applies contaminant detection, and computes
-#' EZDM summary statistics.
+#' EZ-Diffusion summary statistics.
 #'
 #' After sourcing this script, the following objects are available:
 #'   - data_lexical:        Raw data (factors converted, errors/censored removed)
@@ -11,8 +11,8 @@
 #'   - data_response:       Response-coded (upper = "word", lower = "nonword")
 #'   - data_accuracy_clean: Accuracy-coded, contaminants removed
 #'   - data_response_clean: Response-coded, contaminants removed
-#'   - data_acc_ezdm:       EZDM 3par summary stats (accuracy-coded)
-#'   - data_resp_ezdm:      EZDM 4par summary stats (response-coded)
+#'   - data_acc_ezdm:       EZ-Diffusion 3par summary stats (accuracy-coded)
+#'   - data_resp_ezdm:      EZ-Diffusion 4par summary stats (response-coded)
 
 pacman::p_load(here, bmm, tidyverse, rtdists)
 
@@ -116,13 +116,13 @@ data_accuracy_clean <- data_accuracy |> filter(contam_prob <= 0.5)
 data_response_clean <- data_response |>
   semi_join(data_accuracy_clean, by = c("id", "condition", "stim_cat", "rt"))
 
-# -- EZDM summary statistics --------------------------------------------------
+# -- EZ-Diffusion summary statistics --------------------------------------------------
 
 # 3par (accuracy-coded)
 # maxit = 500 for the same reason as above: on non-convergence
 # ezdm_summary_stats() silently substitutes robust moments, which shifted
 # mean_rt by up to 0.13 s in 4 of the 68 cells at the default.
-data_acc_ezdm <- data_accuracy |>
+data_acc_ezdm <- data_accuracy_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
                        method = "mixture", distribution = "exgaussian",

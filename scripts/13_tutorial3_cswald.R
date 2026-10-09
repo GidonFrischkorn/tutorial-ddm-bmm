@@ -1,6 +1,6 @@
 #' Part II (Tutorial 3): The Censored-Shifted Wald at the freq specification
 #'
-#' Fits both CSWALD versions to Wagenmakers et al. (2008) lexical decision data
+#' Fits both Censored-Shifted Wald versions to Wagenmakers et al. (2008) lexical decision data
 #' with the same four-level freq variable on drift as the DDM (script 14), so
 #' that Part III can compare the approaches parameter by parameter:
 #' - Simple (censored): accuracy-coded, appropriate for low error rates (<20%)
@@ -155,7 +155,7 @@ print(round(fixef_simple, 3))
 # scale (its single accumulator must drift toward the boundary), so
 # back-transform with exp() before reading or comparing the values; the
 # crisk version, ezdm, and ddm use an identity link for drift.
-cat("\nCSWALD simple -- drift estimates by frequency (exp of the log-scale estimate):\n")
+cat("\nCensored-Shifted Wald (simple) -- drift estimates by frequency (exp of the log-scale estimate):\n")
 for (lev in freq_levels) {
   cat(sprintf("  %-9s %6.3f\n", lev,
               exp(fixef_simple[paste0("drift_freq", lev), "Estimate"])))
@@ -167,14 +167,14 @@ for (lev in freq_levels) {
 # on the same scale as the other two approaches.
 bound_simple <- exp(fixef_simple[c("bound_conditionspeed",
                                    "bound_conditionaccuracy"), "Estimate"]) * 2
-cat("\nCSWALD simple -- bound estimates (full-boundary scale):\n")
+cat("\nCensored-Shifted Wald (simple) -- bound estimates (full-boundary scale):\n")
 cat("  Speed:   ", round(bound_simple[1], 3), "\n")
 cat("  Accuracy:", round(bound_simple[2], 3), "\n")
 
 fixef_crisk <- fixef(fit_cswald_crisk)
 
 # Relative starting point (logit link -> plogis)
-cat("\nCSWALD crisk -- relative starting point (zr):\n")
+cat("\nCensored-Shifted Wald (crisk) -- relative starting point (zr):\n")
 cat("  Speed:   ", round(plogis(fixef_crisk["zr_conditionspeed", "Estimate"]), 3), "\n")
 cat("  Accuracy:", round(plogis(fixef_crisk["zr_conditionaccuracy", "Estimate"]), 3), "\n")
 
@@ -195,7 +195,7 @@ p_drift <- draws_drift |>
   ggplot(aes(x = drift, y = freq, fill = freq)) +
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   scale_fill_manual(values = eam_palette[1:4]) +
-  labs(x = expression("Drift ("*delta*") - CSWALD simple"), y = "") +
+  labs(x = expression("Drift ("*delta*") - Censored-Shifted Wald (simple)"), y = "") +
   guides(fill = "none") +
   clean_plot()
 
@@ -211,7 +211,7 @@ p_zr <- draws_zr |>
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5) +
   scale_fill_manual(values = eam_palette[3:4]) +
-  labs(x = expression("Rel. Starting Point ("*zeta*") - CSWALD crisk"), y = "") +
+  labs(x = expression("Rel. Starting Point ("*zeta*") - Censored-Shifted Wald (crisk)"), y = "") +
   guides(fill = "none") +
   clean_plot()
 

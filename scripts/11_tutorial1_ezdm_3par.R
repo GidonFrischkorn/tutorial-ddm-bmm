@@ -1,6 +1,6 @@
-#' Tutorial 1: Exploring Condition Effects with the EZDM (3-Parameter)
+#' Tutorial 1: Exploring Condition Effects with the EZ-Diffusion Model (3-Parameter)
 #'
-#' Fits the 3-parameter EZDM to accuracy-coded Wagenmakers et al. (2008)
+#' Fits the 3-parameter EZ-Diffusion Model to accuracy-coded Wagenmakers et al. (2008)
 #' lexical decision data. Tests selective influence: stimulus category
 #' should affect drift, emphasis condition should affect bound.
 
@@ -81,9 +81,12 @@ cat("Max Rhat:", rhat_max, "\n")
 ## 3.2) Posterior predictive checks --------------------------------------------
 # One check per observable the EZ-Diffusion likelihood explains: mean RT, RT
 # variance, and the proportion of upper-boundary responses (pp_check_vars()
-# lists them). Each panel shows the observed value of every design cell (dark
-# points) with its posterior predictive interval (light). All panels use the
-# same 50 posterior draws.
+# lists them). Each panel compares how the statistic is distributed across the
+# 68 design cells: observed (dark) against the posterior predictive draws
+# (light). The RT statistics use a density overlay, the proportion correct
+# binned bars, since it is bounded and takes few distinct values. All panels
+# use the same 50 posterior draws. Use type = "intervals" instead to compare
+# each cell with its own predictive interval.
 pp_vars <- pp_check_vars(fit_acc_ezdm)
 # Short panel titles; with accuracy coding the upper boundary is "correct"
 pp_labels <- c(mean_rt = "Mean RT (s)", var_rt = "RT variance (s\u00b2)",
@@ -92,7 +95,10 @@ set.seed(1)
 pp_draws <- sample(ndraws(fit_acc_ezdm), 50)
 p_pp <- map2(pp_vars$resp_var, pp_labels[pp_vars$resp_var], \(v, lbl)
   pp_check(fit_acc_ezdm, resp_var = v, draw_ids = pp_draws) +
-    labs(title = lbl, subtitle = NULL, x = "Design cell") + clean_plot()
+    labs(title = lbl, subtitle = NULL, x = NULL) + clean_plot() +
+    # the binned-bars panel carries its own y/y_rep guide; dropping it stops
+    # plot_layout(guides = "collect") from printing the legend twice
+    (if (v == "mean_pc") guides(colour = "none", fill = "none") else NULL)
 ) |>
   wrap_plots(nrow = 1) + plot_layout(guides = "collect") &
   theme(legend.position = "bottom")

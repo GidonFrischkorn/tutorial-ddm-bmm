@@ -81,10 +81,10 @@ data_clean <- subject_params |>
 
 
 ###############################################################################!
-# 3) Compute EZDM Summary Statistics -------------------------------------------
+# 3) Compute EZ-Diffusion Summary Statistics -------------------------------------------
 ###############################################################################!
 
-# Compute summary statistics from the clean data for EZDM tutorials
+# Compute summary statistics from the clean data for EZ-Diffusion tutorials
 
 # 3-parameter version (drift, bound, ndt; zr fixed at 0.5)
 data_ezdm_3par <- data_clean |>
@@ -110,10 +110,10 @@ write_csv(
   here("data", "simulated_rt_data_clean.csv")
 )
 
-# Aggregated summary statistics for EZDM (3par) -- from clean data
+# Aggregated summary statistics for the EZ-Diffusion Model (3par) -- from clean data
 write_csv(data_ezdm_3par, here("data", "simulated_ezdm_3par.csv"))
 
-# Aggregated summary statistics for EZDM (4par) -- from clean data
+# Aggregated summary statistics for the EZ-Diffusion Model (4par) -- from clean data
 write_csv(data_ezdm_4par, here("data", "simulated_ezdm_4par.csv"))
 
 # Save true generating parameters for parameter recovery comparisons

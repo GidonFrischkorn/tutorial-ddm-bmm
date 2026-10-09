@@ -1,6 +1,6 @@
 #' Appendix: Parameter Recovery on Simulated Data
 #'
-#' This script fits EZDM 3par, CSWALD crisk, and DDM to simulated data with
+#' This script fits the EZ-Diffusion 3par, Censored-Shifted Wald crisk, and DDM to simulated data with
 #' known generating parameters, then evaluates recovery at both the group level
 #' (population means) and subject level (individual differences).
 #'
@@ -48,7 +48,7 @@ true_params_subject <- read_csv(here("data", "true_parameters_subject.csv"),
 # 0b) Fit Models ---------------------------------------------------------------
 ###############################################################################!
 
-# EZDM 3par
+# EZ-Diffusion 3par
 model_ezdm <- ezdm(mean_rt = "mean_rt", var_rt = "var_rt",
                     n_upper = "n_upper", n_trials = "n_trials",
                     version = "3par")
@@ -66,7 +66,7 @@ fit_ezdm_3par <- bmm(
   file = here("output", "fit_ezdm_3par")
 )
 
-# CSWALD crisk
+# Censored-Shifted Wald crisk
 model_cswald <- cswald(rt = "rt", response = "response", version = "crisk")
 formula_cswald <- bmf(
   drift ~ 0 + condition + (0 + condition | id),

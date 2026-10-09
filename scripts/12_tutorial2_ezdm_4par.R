@@ -1,6 +1,6 @@
-#' Tutorial 2: Estimating Response Bias with the EZDM (4-Parameter)
+#' Tutorial 2: Estimating Response Bias with the EZ-Diffusion Model (4-Parameter)
 #'
-#' Fits the 4-parameter EZDM to response-coded Wagenmakers et al. (2008)
+#' Fits the 4-parameter EZ-Diffusion Model to response-coded Wagenmakers et al. (2008)
 #' lexical decision data. Upper boundary = "word" response, lower = "nonword".
 #' Drift now reflects evidence toward saying "word"; zr captures response bias.
 #' Demonstrates the trial-count constraint on boundary-specific statistics.
@@ -35,7 +35,7 @@ data_response <- read_csv(here("data", "lexical_response_triallevel.csv"),
                            show_col_types = FALSE)
 
 # -- Examine boundary trial counts ---------------------------------------------
-# The 4par EZDM needs stable RT moments on BOTH boundaries in every cell;
+# The 4par EZ-Diffusion Model needs stable RT moments on BOTH boundaries in every cell;
 # check the minority-boundary counts before fitting
 boundary_counts <- data_response |>
   count(id, condition, stim_cat, response) |>
@@ -102,23 +102,32 @@ cat("Max Rhat:", rhat_max, "\n")
 
 ## 3.2) Posterior predictive checks --------------------------------------------
 # One check per observable of the 4par likelihood: mean RT and RT variance at
-# each boundary, and the proportion of upper-boundary ("word") responses.
-# Observed value per design cell (dark) with its posterior predictive interval
-# (light), same 50 posterior draws in every panel. Where a simulated cell has
-# fewer than two responses at a boundary, pp_check() drops that posterior draw
-# (with a warning), so sparse minority-boundary cells stay in the check.
+# each boundary, and the proportion of upper-boundary ("word") responses. Each
+# panel compares how the statistic is distributed across design cells: observed
+# (dark) against the posterior predictive draws (light), with the same 50 draws
+# in every panel. Where a simulated cell has fewer than two responses at a
+# boundary, pp_check() drops that posterior draw (with a warning), so sparse
+# minority-boundary cells stay in the check. Cells whose observed boundary has
+# no usable RT summaries carry a placeholder and are left out of the RT panels
+# (bmm #430); they still enter the proportion panel through their counts.
 pp_vars <- pp_check_vars(fit_resp_ezdm)
 # Short panel titles; with response coding the upper boundary is "word"
-pp_labels <- c(mean_rt_upper = "Mean RT (s), word responses",
-               mean_rt_lower = "Mean RT (s), nonword responses",
-               var_rt_upper  = "RT variance (s\u00b2), word responses",
-               var_rt_lower  = "RT variance (s\u00b2), nonword responses",
+pp_labels <- c(mean_rt_upper = "Mean RT (s), word",
+               mean_rt_lower = "Mean RT (s), nonword",
+               var_rt_upper  = "RT variance (s\u00b2), word",
+               var_rt_lower  = "RT variance (s\u00b2), nonword",
                mean_pc       = "Proportion of word responses")
 set.seed(1)
 pp_draws <- sample(ndraws(fit_resp_ezdm), 50)
 p_pp <- map2(pp_vars$resp_var, pp_labels[pp_vars$resp_var], \(v, lbl)
   pp_check(fit_resp_ezdm, resp_var = v, draw_ids = pp_draws) +
-    labs(title = lbl, subtitle = NULL, x = "Design cell") + clean_plot()
+    labs(title = lbl, subtitle = NULL, x = NULL) + clean_plot() +
+    # short titles at 9 pt: two panels share the width, and longer titles were
+    # clipped at the panel edge in the typeset figure
+    theme(plot.title = element_text(size = 9)) +
+    # the binned-bars panel carries its own y/y_rep guide; dropping it stops
+    # plot_layout(guides = "collect") from printing the legend twice
+    (if (v == "mean_pc") guides(colour = "none", fill = "none") else NULL)
 ) |>
   wrap_plots(ncol = 2) + plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
