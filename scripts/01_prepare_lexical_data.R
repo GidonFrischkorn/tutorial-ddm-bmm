@@ -64,7 +64,7 @@ data_acc_ezdm <- data_accuracy_clean |>
 
 # 4par (response-coded): robust method, because some cells have too few
 # minority-boundary responses to fit a mixture
-data_resp_ezdm <- data_response |>
+data_resp_ezdm <- data_response_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
                        method = "robust"),

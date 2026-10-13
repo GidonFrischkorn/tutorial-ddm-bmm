@@ -165,16 +165,15 @@ ggsave(here("figures", "11_param_estimates.pdf"),
 # Savage-Dickey equality tests: Evid.Ratio is the BF for equality, so
 # 1 / Evid.Ratio is the evidence against it
 
-# Does drift differ between words and nonwords?
-hyp_drift <- hypothesis(fit_acc_ezdm,
-  "drift_stim_catword = drift_stim_catnonword")
-print(hyp_drift)
+# Does drift differ between words and nonwords, and bound between accuracy and
+# speed emphasis? Both tests run in one seeded call, as in the manuscript, so
+# the Bayes factors match the printed ones
+hyp <- hypothesis(fit_acc_ezdm, c(
+  drift = "drift_stim_catword = drift_stim_catnonword",
+  bound = "bound_conditionaccuracy = bound_conditionspeed"
+), seed = 2026)
+print(hyp)
 cat("\nBF against equal drift (word vs. nonword):",
-    round(1 / hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
-
-# Does bound differ between accuracy and speed emphasis?
-hyp_bound <- hypothesis(fit_acc_ezdm,
-  "bound_conditionaccuracy = bound_conditionspeed")
-print(hyp_bound)
-cat("\nBF against equal bound (accuracy vs. speed):",
-    round(1 / hyp_bound$hypothesis$Evid.Ratio, 1), "\n")
+    round(1 / hyp$hypothesis$Evid.Ratio[1], 1), "\n")
+cat("BF against equal bound (accuracy vs. speed):",
+    round(1 / hyp$hypothesis$Evid.Ratio[2], 1), "\n")

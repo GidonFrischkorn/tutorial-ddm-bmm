@@ -201,14 +201,15 @@ ggsave(here("figures", "14_param_estimates.pdf"),
 # Savage-Dickey tests as in Tutorial 1: 1 / Evid.Ratio is the BF against equality
 
 # Does drift differ between high- and very-low-frequency words?
-hyp_drift <- hypothesis(fit_ddm_acc, "drift_freqhigh = drift_freqvery_low")
+hyp_drift <- hypothesis(fit_ddm_acc, "drift_freqhigh = drift_freqvery_low",
+                        seed = 2026)
 print(hyp_drift)
 cat("\nBF against equal drift (high vs. very low frequency):",
     round(1 / hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
 
 # Does bound differ between accuracy and speed emphasis?
 hyp_bound <- hypothesis(fit_ddm_acc,
-  "bound_conditionaccuracy = bound_conditionspeed")
+  "bound_conditionaccuracy = bound_conditionspeed", seed = 2026)
 print(hyp_bound)
 cat("\nBF against equal bound (accuracy vs. speed):",
     round(1 / hyp_bound$hypothesis$Evid.Ratio, 1), "\n")

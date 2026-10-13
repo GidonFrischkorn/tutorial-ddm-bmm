@@ -184,30 +184,31 @@ ggsave(here("figures", "12_resp_params.pdf"),
 # Savage-Dickey tests as in Tutorial 1: 1 / Evid.Ratio is the BF against equality
 
 # Does drift differ from zero for each stimulus category?
-hyp_drift_word <- hypothesis(fit_resp_ezdm, "drift_stim_catword = 0")
+hyp_drift_word <- hypothesis(fit_resp_ezdm, "drift_stim_catword = 0", seed = 2026)
 print(hyp_drift_word)
 cat("\nBF against zero drift (word):",
     round(1 / hyp_drift_word$hypothesis$Evid.Ratio, 1), "\n")
 
-hyp_drift_nw <- hypothesis(fit_resp_ezdm, "drift_stim_catnonword = 0")
+hyp_drift_nw <- hypothesis(fit_resp_ezdm, "drift_stim_catnonword = 0", seed = 2026)
 print(hyp_drift_nw)
 cat("\nBF against zero drift (nonword):",
     round(1 / hyp_drift_nw$hypothesis$Evid.Ratio, 1), "\n")
 
 # Does bound differ between accuracy and speed emphasis?
 hyp_bound <- hypothesis(fit_resp_ezdm,
-  "bound_conditionaccuracy = bound_conditionspeed")
+  "bound_conditionaccuracy = bound_conditionspeed", seed = 2026)
 print(hyp_bound)
 cat("\nBF against equal bound (accuracy vs. speed):",
     round(1 / hyp_bound$hypothesis$Evid.Ratio, 1), "\n")
 
-# Is the starting point biased? On the logit scale, 0 means zr = 0.5
-hyp_zr_acc <- hypothesis(fit_resp_ezdm, "zr_conditionaccuracy = 0")
-print(hyp_zr_acc)
+# Is the starting point biased? On the logit scale, 0 means zr = 0.5. Both
+# conditions run in one seeded call, as in the manuscript
+hyp_zr <- hypothesis(fit_resp_ezdm, c(
+  accuracy = "zr_conditionaccuracy = 0",
+  speed    = "zr_conditionspeed = 0"
+), seed = 2026)
+print(hyp_zr)
 cat("\nBF against unbiased starting point (accuracy):",
-    round(1 / hyp_zr_acc$hypothesis$Evid.Ratio, 1), "\n")
-
-hyp_zr_speed <- hypothesis(fit_resp_ezdm, "zr_conditionspeed = 0")
-print(hyp_zr_speed)
-cat("\nBF against unbiased starting point (speed):",
-    round(1 / hyp_zr_speed$hypothesis$Evid.Ratio, 1), "\n")
+    round(1 / hyp_zr$hypothesis$Evid.Ratio[1], 1), "\n")
+cat("BF against unbiased starting point (speed):",
+    round(1 / hyp_zr$hypothesis$Evid.Ratio[2], 1), "\n")
