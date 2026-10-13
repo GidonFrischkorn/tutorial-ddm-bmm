@@ -1,8 +1,6 @@
-#' Tutorial 1: Exploring Condition Effects with the EZ-Diffusion Model (3-Parameter)
-#'
-#' Fits the 3-parameter EZ-Diffusion Model to accuracy-coded Wagenmakers et al. (2008)
-#' lexical decision data. Tests selective influence: stimulus category
-#' should affect drift, emphasis condition should affect bound.
+# Tutorial 1: The EZ-Diffusion Model (3par) on accuracy-coded data
+# Tests selective influence in the Wagenmakers et al. (2008) lexical decision
+# data: stimulus category should affect drift, emphasis condition the bound.
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -15,19 +13,16 @@ pacman::p_load(
 source(here("functions", "clean_plot.R"))
 
 # -- Fitting settings ---------------------------------------------------------
+# Every fit uses 2 threads per chain so that fitting times are comparable
 chains <- 5
 cores  <- 5
-# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
-# that the fitting times reported in the tutorial stay comparable across the
-# three DDM estimation approaches.
 threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
 max_treedepth <- 12
 
-# -- Load preprocessed data ---------------------------------------------------
-# Run scripts/01_prepare_lexical_data.R once first to generate these files
+# -- Load preprocessed data (created by scripts/01_prepare_lexical_data.R) ----
 data_acc_ezdm <- read_csv(here("data", "lexical_accuracy_ezdm3par.csv"),
                            show_col_types = FALSE)
 
@@ -48,6 +43,9 @@ formula_acc <- bmf(
   bound ~ 0 + condition + (0 + condition | id),
   ndt   ~ 1 + (1 | id)
 )
+
+# Default priors for this formula, data, and model
+default_prior(formula_acc, data_acc_ezdm, model_acc)
 
 ###############################################################################!
 # 2) Model Fitting -------------------------------------------------------------
@@ -73,34 +71,28 @@ fit_acc_ezdm <- bmm(
 ###############################################################################!
 
 ## 3.1) Convergence diagnostics ------------------------------------------------
-# Rhat < 1.01 for all parameters indicates converged chains
 summary(fit_acc_ezdm)
 rhat_max <- max(brms::rhat(fit_acc_ezdm), na.rm = TRUE)
 cat("Max Rhat:", rhat_max, "\n")
 
 ## 3.2) Posterior predictive checks --------------------------------------------
-# One check per observable the EZ-Diffusion likelihood explains: mean RT, RT
-# variance, and the proportion of upper-boundary responses (pp_check_vars()
-# lists them). Each panel compares how the statistic is distributed across the
-# 68 design cells: observed (dark) against the posterior predictive draws
-# (light). The RT statistics use a density overlay, the proportion correct
-# binned bars, since it is bounded and takes few distinct values. All panels
-# use the same 50 posterior draws. Use type = "intervals" instead to compare
-# each cell with its own predictive interval.
-pp_vars <- pp_check_vars(fit_acc_ezdm)
-# Short panel titles; with accuracy coding the upper boundary is "correct"
-pp_labels <- c(mean_rt = "Mean RT (s)", var_rt = "RT variance (s\u00b2)",
-               mean_pc = "Proportion correct")
+# One panel per observable of the likelihood, each showing its distribution
+# across design cells: observed (dark) vs. 50 posterior predictive draws (light)
+pp_check_vars(fit_acc_ezdm)
 set.seed(1)
 pp_draws <- sample(ndraws(fit_acc_ezdm), 50)
-p_pp <- map2(pp_vars$resp_var, pp_labels[pp_vars$resp_var], \(v, lbl)
-  pp_check(fit_acc_ezdm, resp_var = v, draw_ids = pp_draws) +
-    labs(title = lbl, subtitle = NULL, x = NULL) + clean_plot() +
-    # the binned-bars panel carries its own y/y_rep guide; dropping it stops
-    # plot_layout(guides = "collect") from printing the legend twice
-    (if (v == "mean_pc") guides(colour = "none", fill = "none") else NULL)
-) |>
-  wrap_plots(nrow = 1) + plot_layout(guides = "collect") &
+
+p_pp_mean <- pp_check(fit_acc_ezdm, resp_var = "mean_rt", draw_ids = pp_draws) +
+  labs(title = "Mean RT (s)", subtitle = NULL, x = NULL) + clean_plot()
+p_pp_var <- pp_check(fit_acc_ezdm, resp_var = "var_rt", draw_ids = pp_draws) +
+  labs(title = "RT variance (s²)", subtitle = NULL, x = NULL) + clean_plot()
+# With accuracy coding the upper boundary is "correct"; legend shown once below
+p_pp_pc <- pp_check(fit_acc_ezdm, resp_var = "mean_pc", draw_ids = pp_draws) +
+  labs(title = "Proportion correct", subtitle = NULL, x = NULL) + clean_plot() +
+  guides(colour = "none", fill = "none")
+
+p_pp <- wrap_plots(p_pp_mean, p_pp_var, p_pp_pc, nrow = 1) +
+  plot_layout(guides = "collect") &
   theme(legend.position = "bottom")
 ggsave(here("figures", "11_pp_check.pdf"), p_pp,
        width = 6.5, height = 3.2, device = "pdf")
@@ -125,9 +117,7 @@ cat("  Accuracy:", round(exp(fixef_est["bound_conditionaccuracy", "Estimate"]), 
 
 ## 3.4) Visualize parameter estimates ------------------------------------------
 
-# spread_draws() (tidybayes) returns one row per posterior draw with the
-# requested coefficients as columns; pivot_longer() stacks them so both
-# stimulus categories can be plotted in one panel
+# One row per posterior draw, stacked so both categories share one panel
 draws_drift <- fit_acc_ezdm |>
   spread_draws(b_drift_stim_catword, b_drift_stim_catnonword) |>
   pivot_longer(
@@ -145,7 +135,7 @@ p_drift <- draws_drift |>
   guides(fill = "none") +
   clean_plot()
 
-# Extract bound draws by condition (exponentiate)
+# Bound draws by condition (log link -> exponentiate)
 draws_bound <- fit_acc_ezdm |>
   spread_draws(b_bound_conditionspeed, b_bound_conditionaccuracy) |>
   pivot_longer(
@@ -172,18 +162,17 @@ ggsave(here("figures", "11_param_estimates.pdf"),
        p_params, width = 6.5, height = 5, device = "pdf")
 
 ## 3.5) Hypothesis testing -----------------------------------------------------
+# Savage-Dickey equality tests: Evid.Ratio is the BF for equality, so
+# 1 / Evid.Ratio is the evidence against it
 
-# Savage-Dickey equality tests: Evid.Ratio is the BF *for* equality; its
-# inverse (reported in the manuscript) quantifies the evidence against equality
-
-# Test: does drift differ between words and nonwords?
+# Does drift differ between words and nonwords?
 hyp_drift <- hypothesis(fit_acc_ezdm,
   "drift_stim_catword = drift_stim_catnonword")
 print(hyp_drift)
 cat("\nBF against equal drift (word vs. nonword):",
     round(1 / hyp_drift$hypothesis$Evid.Ratio, 1), "\n")
 
-# Test: does bound differ between accuracy and speed emphasis?
+# Does bound differ between accuracy and speed emphasis?
 hyp_bound <- hypothesis(fit_acc_ezdm,
   "bound_conditionaccuracy = bound_conditionspeed")
 print(hyp_bound)

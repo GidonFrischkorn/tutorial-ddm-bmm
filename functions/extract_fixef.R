@@ -1,10 +1,5 @@
-#' Extract fixed effects from a fitted bmm/brms model as a tidy tibble
-#'
-#' Shared helper for the comparison scripts (15_cross_model_comparison.R,
-#' 21_appendix_parameter_recovery.R). For each requested parameter, pulls
-#' all matching rows from fixef(), applies the link-inverse transform
-#' (e.g., exp for log-linked bound/ndt, plogis for logit-linked zr),
-#' and returns one row per coefficient with estimate and 95% CrI.
+# Population-level estimates of a bmm fit as a tibble: one row per coefficient,
+# estimate and 95% CrI, back-transformed with the function given per parameter
 
 extract_fixef <- function(fit, model_name, params, transforms = list()) {
   fe <- brms::fixef(fit)
@@ -12,7 +7,7 @@ extract_fixef <- function(fit, model_name, params, transforms = list()) {
     rows <- grep(paste0("^", par_name, "_"), rownames(fe), value = TRUE)
     purrr::map_dfr(rows, function(r) {
       est <- fe[r, ]
-      # %||%: use the parameter's transform if supplied, identity otherwise
+      # identity if no transform is given for this parameter
       tfm <- transforms[[par_name]] %||% identity
       tibble::tibble(
         model = model_name,
@@ -26,8 +21,7 @@ extract_fixef <- function(fit, model_name, params, transforms = list()) {
   })
 }
 
-# Strip the predictor prefix from coefficient names (e.g., "conditionspeed"
-# -> "speed") so the levels can be used directly as axis labels
+# Strip predictor prefixes from coefficient names ("conditionspeed" -> "speed")
 clean_levels <- function(df) {
   df |>
     dplyr::mutate(

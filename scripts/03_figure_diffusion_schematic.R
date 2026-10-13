@@ -1,36 +1,26 @@
-#' Diffusion Process Schematic
-#'
-#' Creates a conceptual diagram of the Diffusion Decision Model (DDM):
-#' several noisy evidence paths accumulate from the starting point toward two
-#' response boundaries, with the resulting RT distributions attached to each
-#' boundary (correct responses above, errors below). All four parameters are
-#' annotated: drift (delta), boundary separation (alpha), non-decision time
-#' (tau), and relative starting point (zeta_r).
-#'
-#' The non-decision time is drawn in its two conceptual parts: stimulus
-#' encoding before accumulation starts (shaded band) and motor execution after
-#' a boundary is reached (dashed segments). The DDM estimates only their sum,
-#' so the split below is illustrative and its proportions are arbitrary.
+# Figure: schematic of the Diffusion Decision Model
+# Simulated evidence paths between two boundaries, the resulting RT
+# distributions, and the four parameters (drift, bound, ndt, zr).
 
 pacman::p_load(here, bmm, tidyverse, patchwork)
 source(here("functions", "clean_plot.R"))
 
 set.seed(42)
 
-# --- DDM parameters for the illustration ---
+# -- DDM parameters for the illustration --------------------------------------
+# The encoding/motor split of ndt is illustrative; the DDM estimates only the sum
 drift   <- 2.0
 bound   <- 1.5
 ndt     <- 0.30
-ndt_enc <- 0.18          # encoding share of ndt (display only)
-ndt_mot <- ndt - ndt_enc # motor share of ndt (display only)
+ndt_enc <- 0.18
+ndt_mot <- ndt - ndt_enc
 zr      <- 0.5
 dt      <- 0.001
 n_steps <- 1200
 x_lim   <- 1.25   # right edge of the plot (seconds)
 
-# --- Simulate candidate diffusion paths and keep a small illustrative set ----
-# Accumulation starts after encoding, so paths are shifted by ndt_enc; the
-# remaining ndt_mot is added afterwards as the motor segment.
+# -- Simulate candidate evidence paths -----------------------------------------
+# Accumulation starts after encoding (ndt_enc); motor time is added afterwards
 sim_paths <- map(1:300, function(i) {
   noise <- rnorm(n_steps, mean = drift * dt, sd = sqrt(dt))
   evidence <- cumsum(noise) + zr * bound
@@ -48,9 +38,7 @@ sim_paths <- map(1:300, function(i) {
   compact() |>
   bind_rows()
 
-# Keep paths whose response (boundary crossing plus motor time) falls within
-# the plotting window and is neither too short nor too long for a readable
-# display
+# Keep a few paths whose response time falls well inside the plotting window
 path_info <- sim_paths |>
   summarise(rt = max(time) + ndt_mot, outcome = first(outcome), .by = path_id) |>
   filter(rt > 0.45, rt < 1.05)
@@ -71,16 +59,14 @@ tails <- sim_paths |>
 ends_main   <- tails |> filter(main)
 motor_upper <- ends_main |> filter(outcome == "upper")
 
-# --- Simulate many trials for the RT distributions at the boundaries ---------
+# -- RT distributions at the boundaries ----------------------------------------
 sim_rt <- rddm(20000, drift = drift, bound = bound, ndt = ndt, zr = zr)
 p_upper <- mean(sim_rt$response == 1)
 
 dens_height <- 0.5  # display height of the correct-RT distribution
 
-# Display heights are schematic, not to scale: with these parameters errors
-# make up only ~5% of trials, so the error distribution is scaled relative
-# to its own peak (at 45% of the correct distribution's height) to stay
-# visible — as is conventional in DDM illustrations
+# Heights are not to scale: errors (~5% of trials) are scaled to their own peak
+# so that the error distribution stays visible
 dens_scaled <- function(rts, height) {
   d <- density(rts, from = ndt, to = x_lim, adjust = 1.2)
   tibble(time = d$x, h = d$y / max(d$y) * height)
@@ -92,7 +78,7 @@ dens_lower <- dens_scaled(sim_rt$rt[sim_rt$response == 0], dens_height * 0.45)
 y_top <- bound + dens_height + 0.12
 y_bot <- -max(dens_lower$h) - 0.38
 
-# --- Build the figure ---------------------------------------------------------
+# -- Build the figure ----------------------------------------------------------
 p_schematic <- ggplot() +
 
   # RT distributions attached to the boundaries

@@ -1,11 +1,7 @@
-#' Appendix: Parameter Recovery on Simulated Data
-#'
-#' This script fits the EZ-Diffusion 3par, Censored-Shifted Wald crisk, and DDM to simulated data with
-#' known generating parameters, then evaluates recovery at both the group level
-#' (population means) and subject level (individual differences).
-#'
-#' Requires: Run scripts/20_prepare_simulated_data.R first to generate the
-#' simulated datasets in data/.
+# Appendix: Parameter recovery with an unbiased starting point
+# Fits the EZ-Diffusion 3par, Censored-Shifted Wald (crisk), and DDM to the
+# simulated easy/hard data (scripts/20_prepare_simulated_data.R) and evaluates
+# recovery at the group and subject level.
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -19,11 +15,9 @@ source(here("functions", "clean_plot.R"))
 source(here("functions", "extract_fixef.R"))
 
 # -- Fitting settings ---------------------------------------------------------
+# Every fit uses 2 threads per chain so that fitting times are comparable
 chains <- 5
 cores  <- 5
-# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
-# that the fitting times reported in the tutorial stay comparable across the
-# three DDM estimation approaches.
 threads <- 2
 warmup <- 1000
 iter   <- 2000
@@ -38,14 +32,14 @@ data_sim <- read_csv(here("data", "simulated_rt_data_clean.csv"),
 data_ezdm <- read_csv(here("data", "simulated_ezdm_3par.csv"),
                        show_col_types = FALSE)
 
-# -- Load true generating parameters -----------------------------------------
+# -- True generating parameters -----------------------------------------------
 true_params <- read_csv(here("data", "true_parameters.csv"),
                          show_col_types = FALSE)
 true_params_subject <- read_csv(here("data", "true_parameters_subject.csv"),
                                  show_col_types = FALSE)
 
 ###############################################################################!
-# 0b) Fit Models ---------------------------------------------------------------
+# 1) Model Specification & Fitting ---------------------------------------------
 ###############################################################################!
 
 # EZ-Diffusion 3par
@@ -100,11 +94,10 @@ fit_ddm <- bmm(
 )
 
 ###############################################################################!
-# 1) Group-Level Recovery ------------------------------------------------------
+# 2) Group-Level Recovery ------------------------------------------------------
 ###############################################################################!
 
-# Shared helper (functions/extract_fixef.R): tidy fixef() extraction with
-# link-inverse transforms per parameter
+# extract_fixef() (functions/) returns fixef() as a tibble on the natural scale
 group_transforms <- list(bound = exp, ndt = exp)
 
 group_recovery <- bind_rows(
@@ -117,7 +110,7 @@ group_recovery <- bind_rows(
   clean_levels() |>
   mutate(level = if_else(level == "", "overall", level))
 
-# Add true values
+# Generating population values
 true_vals <- tibble(
   parameter = c("drift", "drift", "bound", "ndt"),
   level = c("easy", "hard", "overall", "overall"),
@@ -150,16 +143,13 @@ ggsave(here("figures", "21_recovery_group.pdf"),
        p_group, width = 6.5, height = 3.5)
 
 ###############################################################################!
-# 2) Subject-Level Recovery ----------------------------------------------------
+# 3) Subject-Level Recovery ----------------------------------------------------
 ###############################################################################!
 
 extract_subject_params <- function(fit, model_name, n_subjects = 50) {
+  # coef()$id: subject-level estimates with 95% CrI, one slice per coefficient
   co <- coef(fit)$id
 
-  # With (0 + condition | id) on drift, coef() returns condition-specific
-  # subject-level estimates directly.
-  # coef()$id carries the 95% CrI bounds (Q2.5/Q97.5) alongside the mean, so
-  # we extract them here to report posterior uncertainty per participant.
   drift_easy <- tibble(
     model = model_name,
     parameter = "drift_easy",
@@ -178,8 +168,7 @@ extract_subject_params <- function(fit, model_name, n_subjects = 50) {
     upper = co[1:n_subjects, "Q97.5", "drift_conditionhard"]
   )
 
-  # Bound (log link): exponentiate the point and both CrI bounds. exp() is
-  # monotonic, so exp(Q2.5)/exp(Q97.5) are the natural-scale 95% CrI limits.
+  # bound and ndt have log links: exponentiate estimate and CrI limits
   bound <- tibble(
     model = model_name,
     parameter = "bound",
@@ -189,7 +178,6 @@ extract_subject_params <- function(fit, model_name, n_subjects = 50) {
     upper = exp(co[1:n_subjects, "Q97.5", "bound_Intercept"])
   )
 
-  # Ndt (log link): same natural-scale back-transform of the CrI bounds.
   ndt <- tibble(
     model = model_name,
     parameter = "ndt",
@@ -208,9 +196,7 @@ subject_recovery <- bind_rows(
   extract_subject_params(fit_ddm, "Full DDM")
 )
 
-# Merge with true subject-level parameters. Drift varies by condition;
-# bound_subj and ndt_subj are constant across conditions, so one row per id
-# suffices for those.
+# True subject values; bound and ndt do not vary by condition, so one row per id
 true_subject <- bind_rows(
   true_params_subject |>
     transmute(id, parameter = paste0("drift_", condition),
@@ -231,17 +217,15 @@ subject_recovery <- subject_recovery |>
                        labels = c("Drift (easy)", "Drift (hard)", "Bound", "NDT"))
   )
 
-# Compute correlations
+# Correlation between true and recovered values
 subject_cors <- subject_recovery |>
   group_by(model, parameter) |>
   summarise(r = cor(true_value, recovered), .groups = "drop") |>
   mutate(label = sprintf("r = %.2f", r))
 
 # -- Plot subject-level recovery -----------------------------------------------
-# One facet_wrap row per estimation approach (parameters across columns),
-# stacked with patchwork. Each panel keeps free scales so parameters on
-# different ranges (notably ndt) stay informative. Model colors follow the
-# c(1, 3, 4) palette indices used for the group-level figure.
+# One row of panels per approach, stacked with patchwork; colors as in the
+# group-level figure
 model_colors <- c("EZ-Diffusion (3par)"    = eam_palette[1],
                   "Censored-Shifted Wald (crisk)" = eam_palette[3],
                   "Full DDM"     = eam_palette[4])
@@ -269,4 +253,4 @@ p_subject <- recovery_row("EZ-Diffusion (3par)") /
   recovery_row("Full DDM", x_title = TRUE)
 
 ggsave(here("figures", "21_recovery_subject.pdf"),
-       p_subject, width = 6.5, height = 7.5)
+       p_subject, width = 6.5, height = 6)

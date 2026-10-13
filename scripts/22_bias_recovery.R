@@ -1,12 +1,7 @@
-#' Part I: Parameter Recovery With a Biased Starting Point
-#'
-#' Fits the 4-parameter EZ-Diffusion Model, the 3-parameter EZ-Diffusion Model
-#' (starting point fixed at 0.5), and the full DDM to simulated data whose
-#' relative starting point is 0.60 or 0.40 by bias condition, then evaluates
-#' recovery at the group level (population means) and the subject level.
-#'
-#' Requires: Run scripts/20_prepare_simulated_data.R first to generate the
-#' simulated datasets in data/.
+# Part I: Parameter recovery with a biased starting point
+# Fits the EZ-Diffusion 4par, the EZ-Diffusion 3par (zr fixed at 0.5), and the
+# DDM to the simulated bias data (scripts/20_prepare_simulated_data.R) and
+# evaluates recovery at the group and subject level.
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -20,11 +15,9 @@ source(here("functions", "clean_plot.R"))
 source(here("functions", "extract_fixef.R"))
 
 # -- Fitting settings ---------------------------------------------------------
+# Every fit uses 2 threads per chain so that fitting times are comparable
 chains <- 5
 cores  <- 5
-# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
-# that the fitting times reported in the tutorial stay comparable across the
-# three DDM estimation approaches.
 threads <- 2
 warmup <- 1000
 iter   <- 2000
@@ -43,20 +36,17 @@ true_bias_subject <- read_csv(here("data", "true_parameters_bias_subject.csv"),
                               show_col_types = FALSE)
 
 # -- Summary statistics for the EZ-Diffusion fits ------------------------------
-# One cell per participant x stimulus x bias condition. The 4par version needs
-# boundary-specific moments; the 3par version pools both boundaries.
+# One cell per participant x stimulus x bias; 3par pools both boundaries
 data_bias_4par <- data_bias |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
-                       method = "mixture", distribution = "exgaussian",
-                       maxit = 500),
+                       method = "mixture", distribution = "exgaussian"),
     .by = c(id, stimulus, bias)
   )
 data_bias_3par <- data_bias |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
-                       method = "mixture", distribution = "exgaussian",
-                       maxit = 500),
+                       method = "mixture", distribution = "exgaussian"),
     .by = c(id, stimulus, bias)
   )
 stopifnot(!anyNA(data_bias_4par$contaminant_prop_upper),
@@ -83,15 +73,14 @@ model_ezdm_3par <- ezdm(
 )
 model_ddm <- ddm(rt = "rt", response = "response")
 
-# Stimulus type on drift, bias condition on zr; bound and ndt do not vary by
-# condition in the generating model.
+# Stimulus on drift, bias on zr; bound and ndt are constant, as in the simulation
 formula_bias <- bmf(
   drift ~ 0 + stimulus + (0 + stimulus | id),
   bound ~ 1 + (1 | id),
   ndt   ~ 1 + (1 | id),
   zr    ~ 0 + bias + (0 + bias | id)
 )
-# The 3par version has no zr: the same formula without that line.
+# The 3par version has no zr
 formula_bias_3par <- bmf(
   drift ~ 0 + stimulus + (0 + stimulus | id),
   bound ~ 1 + (1 | id),
@@ -136,7 +125,7 @@ fits <- list(
 )
 model_levels <- names(fits)
 
-# Convergence and wall-clock (slowest chain), the statistics the text reports
+# Convergence and wall-clock time (slowest chain)
 for (m in model_levels) {
   cat(sprintf("%-22s max Rhat = %.3f   wall-clock = %.1f min\n", m,
               max(brms::rhat(fits[[m]]), na.rm = TRUE),
@@ -158,12 +147,10 @@ group_recovery <- bind_rows(
                 c("drift", "bound", "ndt", "zr"), group_transforms)
 ) |>
   clean_levels() |>
-  # clean_levels() knows the lexical factors; strip this design's own prefixes
   mutate(level = str_remove(level, "^(stimulus|bias)"),
          level = if_else(level == "", "overall", level))
 
-# Generating values: drift by stimulus, zr by bias condition, bound and ndt
-# constant. The 3par model has no zr row and is drawn without one.
+# Generating values: drift by stimulus, zr by bias, bound and ndt constant
 true_vals <- bind_rows(
   true_bias |> distinct(level = stimulus, true_value = drift) |>
     mutate(parameter = "drift"),
@@ -203,9 +190,8 @@ ggsave(here("figures", "22_bias_recovery_group.pdf"),
 # 4) Subject-Level Recovery ----------------------------------------------------
 ###############################################################################!
 
-# coef()$id returns condition-specific subject-level estimates with their
-# 95% CrI bounds; back-transform log-link (bound, ndt) and logit-link (zr)
-# parameters, point and interval alike.
+# Subject-level estimates and 95% CrI from coef()$id on the natural scale;
+# zr only for models that estimate it
 extract_subject_params <- function(fit, model_name, n_subjects = 50) {
   co <- coef(fit)$id
   pars <- dimnames(co)[[3]]
@@ -229,8 +215,11 @@ extract_subject_params <- function(fit, model_name, n_subjects = 50) {
   out
 }
 
-subject_recovery <- purrr::map(model_levels, \(m) extract_subject_params(fits[[m]], m)) |>
-  bind_rows()
+subject_recovery <- bind_rows(
+  extract_subject_params(fit_ezdm_4par_bias, "EZ-Diffusion (4par)"),
+  extract_subject_params(fit_ezdm_3par_bias, "EZ-Diffusion (3par)"),
+  extract_subject_params(fit_ddm_bias, "Full DDM")
+)
 
 true_subject <- bind_rows(
   true_bias_subject |>
@@ -247,7 +236,6 @@ true_subject <- bind_rows(
 )
 
 param_levels <- c("drift_A", "drift_B", "bound", "ndt", "zr_A", "zr_B")
-# short enough for six panels across 6.5 in (the caption spells them out)
 param_labels <- c("Drift (A)", "Drift (B)", "Bound", "NDT",
                   "zr (A)", "zr (B)")
 
@@ -262,7 +250,7 @@ subject_cors <- subject_recovery |>
   summarise(r = cor(true_value, recovered), .groups = "drop") |>
   mutate(label = sprintf("r = %.2f", r))
 print(subject_cors, n = Inf)
-# Read by the manuscript's setup chunk
+# Read by the manuscript
 write_csv(subject_cors |> select(model, parameter, r),
           here("data", "bias_recovery_subject_correlations.csv"))
 
@@ -280,8 +268,7 @@ recovery_row <- function(model_name, x_title = FALSE, y_title = FALSE) {
               color = model_colors[[model_name]],
               hjust = -0.1, vjust = 1.3, size = 3) +
     facet_wrap(~ parameter, nrow = 1, scales = "free", drop = TRUE) +
-    # six narrow panels: fewer, smaller tick labels so they do not overlap
-    # (the theme() must follow clean_plot(), which would otherwise reset it)
+    # Fewer, smaller tick labels for six narrow panels (theme after clean_plot)
     scale_x_continuous(n.breaks = 3) +
     scale_y_continuous(n.breaks = 3) +
     labs(title = model_name,
@@ -296,4 +283,4 @@ p_subject <- recovery_row("EZ-Diffusion (4par)") /
   recovery_row("Full DDM", x_title = TRUE)
 
 ggsave(here("figures", "22_bias_recovery_subject.pdf"),
-       p_subject, width = 6.5, height = 7.5)
+       p_subject, width = 6.5, height = 5.5)

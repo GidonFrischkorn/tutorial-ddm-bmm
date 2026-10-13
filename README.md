@@ -47,7 +47,7 @@ To reproduce locally, run the scripts in `scripts/` — fitted models will be ca
 
 ## Structure of the Tutorial
 
-The manuscript centers on the hierarchical EZ-Diffusion Model as the primary analysis and is organized in three parts, preceded by a data-preprocessing section that introduces `bmm`'s contaminant-handling functions (`flag_contaminant_rts()`, `ezdm_summary_stats()`, `adjust_ezdm_accuracy()`) on the lexical decision data of Wagenmakers et al. (2008).
+The manuscript centers on the hierarchical EZ-Diffusion Model as the primary analysis and is organized in three parts, preceded by a data-preprocessing section that introduces `bmm`'s contaminant-handling functions (`flag_contaminant_rts()`, `ezdm_summary_stats()`) on the lexical decision data of Wagenmakers et al. (2008).
 
 **Part I — The EZ-Diffusion Model.** Tutorial 1 (`11_tutorial1_ezdm_3par.R`) fits the three-parameter version to the accuracy-coded data, tests condition effects on drift and bound, and refines the stimulus contrast to four word-frequency levels (`15_cross_model_comparison.R`, section 1). Tutorial 2 (`12_tutorial2_ezdm_4par.R`) switches to response coding and the four-parameter version to estimate the relative starting point. A recovery study (`22_bias_recovery.R`, data from `20_prepare_simulated_data.R`) shows what the four-parameter version recovers when the starting point is biased, against the three-parameter version and the full DDM.
 
@@ -64,7 +64,7 @@ install.packages("pacman")
 pacman::p_load(here, bmm, brms, cmdstanr, tidyverse, tidybayes, patchwork, rtdists)
 ```
 
-The `ezdm` fits in this repository require the development version of `bmm` (1.3.2.9000), which carries the cumulants likelihood for `ezdm` (issue #407) and keeps design cells whose minority boundary has no usable RT summaries (#430). Until the next release, install it with `remotes::install_github("popov-lab/bmm@186250e0")` (`origin/develop`, 2026-10-08); released versions up to 1.3.2 fit a different `ezdm` likelihood and do not reproduce the reported numbers. The trial-level fits (`cswald`, `ddm`) are unaffected by these changes. The raw data are `speed_acc` from the `rtdists` package.
+All analyses use `bmm` 1.4.0 from CRAN. The raw data are `speed_acc` from the `rtdists` package.
 
 [cmdstanr](https://mc-stan.org/cmdstanr/) requires a working CmdStan installation. See `cmdstanr::install_cmdstan()`.
 

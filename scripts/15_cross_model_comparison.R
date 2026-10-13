@@ -1,11 +1,7 @@
-#' Cross-Model Comparison
-#'
-#' Fits the EZ-Diffusion comparison models with the 4-level freq specification
-#' (used in Part I's frequency refit and in Part III), builds the composite
-#' posterior predictive check for Part II, then compares parameter estimates
-#' across the EZ-Diffusion Model, the Censored-Shifted Wald, and the DDM -- all at the freq specification -- for both
-#' codings. Overlays reference values from Wagenmakers et al. (2008), Table 2
-#' (converted to s = 1 scaling).
+# Part III: Cross-approach comparison at the freq specification
+# Fits the EZ-Diffusion Model with freq on drift, checks the trial-level fits,
+# and compares the EZ-Diffusion, Censored-Shifted Wald, and DDM estimates for
+# both codings against Wagenmakers et al. (2008, Table 2).
 
 ###############################################################################!
 # 0) R Setup: Packages & Data -------------------------------------------------
@@ -18,20 +14,17 @@ pacman::p_load(
 source(here("functions", "clean_plot.R"))
 source(here("functions", "extract_fixef.R"))
 
-# -- Fitting settings (for the EZ-Diffusion comparison fits below) ---------------------
+# -- Fitting settings ---------------------------------------------------------
+# Every fit uses 2 threads per chain so that fitting times are comparable
 chains <- 5
 cores  <- 5
-# 5 chains x 2 threads = 10 workers. Threading is applied to every model so
-# that the fitting times reported in the tutorial stay comparable across the
-# three DDM estimation approaches.
 threads <- 2
 warmup <- 1000
 iter   <- 2000
 adapt_delta   <- 0.90
 max_treedepth <- 12
 
-# -- Load preprocessed trial-level data ----------------------------------------
-# Run scripts/01_prepare_lexical_data.R once first to generate these files
+# -- Load preprocessed data (created by scripts/01_prepare_lexical_data.R) ----
 freq_levels <- c("high", "low", "very_low", "nonword")
 
 data_accuracy_clean <- read_csv(
@@ -53,31 +46,23 @@ fit_resp_ezdm     <- readRDS(here("output", "fit_ezdm_lexical_resp.rds"))
 fit_cswald_crisk  <- readRDS(here("output", "fit_cswald_lexical_resp.rds"))
 fit_ddm_resp      <- readRDS(here("output", "fit_ddm_lexical_resp.rds"))
 
-# -- Load reference parameters (Wagenmakers et al., 2008, s = 1) ---------------
+# -- Reference parameters (Wagenmakers et al., 2008, rescaled to s = 1) -------
 ref_params <- read_csv(
   here("data", "wagenmakers2008_reference_params.csv"),
   show_col_types = FALSE
 )
 
 ###############################################################################!
-# 1) EZ-Diffusion Comparison Fits (freq specification) --------------------------
+# 1) EZ-Diffusion Fits at the freq Specification ------------------------------
 ###############################################################################!
 
-# Fit the EZ-Diffusion Model with the same 4-level freq variable on drift as the trial-level
-# models in scripts 13 and 14. The accuracy-coded fit is the frequency refit
-# shown at the end of Tutorial 1. Both fits are cached via `file`, so
-# re-running this script loads them from output/.
+## 1.1) EZ-Diffusion 3par with freq (accuracy-coded) ---------------------------
 
-## 1.1) EZ-Diffusion 3par with freq (accuracy-coded) ------------------------------------
-
-# maxit = 500 matches script 01. The freq split is finer than the stim_cat
-# split used there (130 cells instead of 68), so the EM's iteration cap bites
-# harder here, not less.
+# The frequency refit of Tutorial 1: summary statistics per id x condition x freq
 data_acc_ezdm_freq <- data_accuracy_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "3par",
-                       method = "mixture", distribution = "exgaussian",
-                       maxit = 500),
+                       method = "mixture", distribution = "exgaussian"),
     .by = c(id, condition, freq)
   )
 
@@ -110,12 +95,9 @@ fit_acc_ezdm_freq <- bmm(
   file    = here("output", "fit_ezdm_lexical_acc_freq")
 )
 
-## 1.2) EZ-Diffusion 4par with freq (response-coded) ------------------------------------
+## 1.2) EZ-Diffusion 4par with freq (response-coded) --------------------------
 
-# Stress test: the 4par EZ-Diffusion Model requires sufficient trials on *both* boundaries
-# in every cell (id x condition x freq). Use the robust method (MAD-based
-# estimators) with min_trials = 3 to retain cells with very few minority-
-# boundary responses; the mixture method's EM step fails in sparse cells.
+# Robust moments with min_trials = 3 keep cells with few minority-boundary responses
 data_resp_ezdm_freq <- data_response_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
@@ -124,7 +106,7 @@ data_resp_ezdm_freq <- data_response_clean |>
     .by = c(id, condition, freq)
   )
 
-# Check trial counts on the minority boundary
+# Trial counts on the minority boundary
 minority_counts <- data_resp_ezdm_freq |>
   mutate(n_lower = n_trials - n_upper,
          n_minority = pmin(n_upper, n_lower)) |>
@@ -169,18 +151,13 @@ fit_resp_ezdm_freq <- bmm(
 
 ## 1.3) The same 4par fit from mixture moments ---------------------------------
 
-# Part III attributes the gap between the 4par bound and the full DDM's to the
-# approach, but the robust moments carry an offset of their own (median below
-# the mean, IQR-variance below the variance in right-skewed RTs). This fit
-# isolates that offset: same cells, same formula, mixture moments where the EM
-# converges. In cells where it does not, ezdm_summary_stats() silently falls
-# back to the robust statistics (contaminant_prop = NA with the RT moments
-# present), so the number of fallback boundaries is counted and saved.
+# Isolates the offset of the robust moments: same cells and formula, mixture
+# moments wherever the EM converges (robust fallback otherwise, counted below)
 data_resp_ezdm_freq_mix <- data_response_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
                        method = "mixture", distribution = "exgaussian",
-                       maxit = 500, min_trials = 3),
+                       min_trials = 3),
     .by = c(id, condition, freq)
   )
 mix_fallback <- data_resp_ezdm_freq_mix |>
@@ -214,10 +191,8 @@ fit_resp_ezdm_freq_mix <- bmm(
 # 2) Composite Posterior Predictive Check (Part II figure) ---------------------
 ###############################################################################!
 
-# One row per trial-level fit, one column per observable of the likelihood:
-# the RT distribution, the response proportions, and the signed RT (lower-
-# boundary responses negative), which checks choices and RTs jointly. Each row
-# uses the same 50 posterior draws in all three panels.
+# One row per trial-level fit; the signed RT (lower-boundary responses
+# negative) checks choices and RTs jointly. Each row uses one set of 50 draws.
 trial_fits <- list(
   "Censored-Shifted Wald (simple), accuracy-coded" = fit_cswald_simple,
   "Full DDM, accuracy-coded"                       = fit_ddm_acc,
@@ -233,30 +208,22 @@ p_pp_trial <- imap(trial_fits, \(fit, model_lbl) {
     pp_check(fit, resp_var = v, draw_ids = draws) +
       labs(title = var_lbl, subtitle = NULL) + clean_plot() +
       theme(legend.position = "none", plot.title = element_text(size = 8)) +
-      # observed RTs lie below 3 s (the original study's upper bound); the
-      # simulated tails would otherwise stretch the axis and flatten the density
+      # Observed RTs lie below 3 s; long simulated tails would flatten the density
       coord_cartesian(xlim = switch(v, rt = c(0, 3), signed_rt = c(-3, 3), NULL))
   )
   wrap_elements(full = grid::textGrob(model_lbl, x = 0, hjust = 0,
                                       gp = grid::gpar(fontsize = 9, fontface = "bold"))) /
     wrap_plots(panels, nrow = 1) +
-    plot_layout(heights = c(0.12, 1))
+    plot_layout(heights = c(0.08, 1))
 }) |>
   wrap_plots(ncol = 1)
 ggsave(here("figures", "15_pp_check_trial_level.pdf"),
-       p_pp_trial, width = 6.5, height = 8.5)
+       p_pp_trial, width = 6.5, height = 5)
 
-## 2b) Per-cell interval checks for the trial-level fits -----------------------
+## 2.1) Per-cell interval checks for the trial-level fits ---------------------
 
-# Part I judges the EZ-Diffusion fits by whether each design cell's mean RT,
-# RT variance, and proportion of upper-boundary responses fall inside their
-# 90% posterior predictive intervals (pp_check(type = "intervals")). The
-# trial-level fits get the same check here, from the same 50 draws as the
-# composite figure above (same seed, same order of fits), so that fit quality
-# is judged the same way for all three approaches. Cells are id x condition x
-# freq, the specification shared by all fits in this script. For the simple
-# version the proportion column is not a test of fit: its censored likelihood
-# does not generate errors (see the manuscript, Part II).
+# Counts the id x condition x freq cells whose mean RT, RT variance, or proportion
+# upper fall outside the 90% predictive interval, as done for the EZ-Diffusion fits
 cell_check <- function(fit, draws) {
   d <- fit$data
   resp_col <- intersect(c("dec", "response"), names(d))[1]
@@ -269,10 +236,8 @@ cell_check <- function(fit, draws) {
                 .by = cell)
   }
   obs <- cell_stats(d$rt, resp)
-  # One joint simulation of all trials for the selected draws, the same route
-  # pp_check() takes: posterior_predict() would call the simulator once per
-  # trial (31,172 times per fit) and takes hours here. pp_simulate() returns
-  # ndraws x nobs matrices of rt and response.
+  # pp_simulate() returns ndraws x nobs matrices of rt and response; it is much
+  # faster than posterior_predict() for these models
   prep <- brms::prepare_predictions(fit, draw_ids = draws)
   yrep <- bmm::pp_simulate(fit$bmm$model, prep)
   sims <- map(seq_len(nrow(yrep$rt)),
@@ -303,15 +268,11 @@ write_csv(trial_cell_checks, here("data", "trial_level_ppc_cell_counts.csv"))
 # 3) Accuracy-Coded Comparison -------------------------------------------------
 ###############################################################################!
 
-# All three approaches at the freq specification: EZ-Diffusion (freq), Censored-Shifted Wald simple
-# (freq), DDM (freq). Drift by frequency, bound by condition, ndt.
-
+# Drift by frequency, bound by condition, and ndt; link functions are inverted
 acc_transforms <- list(bound = exp, ndt = exp)
 
-# The cswald "simple" bound is the distance from the starting point to the
-# correct boundary, i.e. half the boundary separation that ezdm and ddm
-# report. Doubling puts all three models on the full-boundary scale. Its drift
-# has a log link (ezdm and ddm: identity), so it is exponentiated as well.
+# The simple version's bound is half the boundary separation (so x 2), and its
+# drift has a log link
 cswald_transforms <- list(drift = exp, bound = \(x) exp(x) * 2, ndt = exp)
 
 acc_levels <- c("EZ-Diffusion", "Censored-Shifted Wald (simple)", "Full DDM")
@@ -324,7 +285,7 @@ acc_all <- bind_rows(
   mutate(model = factor(model, levels = acc_levels),
          level = if_else(level == "", "ndt", level))
 
-# Reference values (Wagenmakers et al., 2008; accuracy-coded drift = |drift|)
+# Reference values; with accuracy coding the nonword drift is positive
 ref_drift_freq <- ref_params |>
   filter(parameter == "drift", level != "word_avg") |>
   transmute(level = level,
@@ -345,8 +306,6 @@ cmp_panel <- function(d, ref, title, palette, y_lab = NULL, dodge = 0.6) {
     scale_color_manual(values = palette) +
     labs(x = NULL, y = y_lab, title = title, color = "Model", shape = "Model") +
     clean_plot() +
-    # short titles at 9 pt: three panels share 6.5 in, and longer titles were
-    # clipped at the panel edge in the typeset figure
     theme(plot.title = element_text(size = 9))
 }
 
@@ -357,7 +316,6 @@ p_acc_drift <- cmp_panel(filter(acc_all, parameter == "drift") |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 p_acc_bound <- cmp_panel(filter(acc_all, parameter == "bound"), ref_bound,
                          "Bound", eam_palette[c(1, 3, 4)])
-# X markers (Wagenmakers et al., 2008) are explained in the figure caption
 p_acc_ndt   <- cmp_panel(filter(acc_all, parameter == "ndt"), ref_ndt,
                          "ndt", eam_palette[c(1, 3, 4)])
 
@@ -372,10 +330,7 @@ ggsave(here("figures", "15_cross_model_accuracy.pdf"),
 # 4) Response-Coded Comparison -------------------------------------------------
 ###############################################################################!
 
-# EZ-Diffusion 4par (freq), Censored-Shifted Wald crisk (freq), DDM (freq): drift by frequency,
-# bound by condition, zr by condition.
-# fit_ezdm_lexical_resp_freq converged under the cumulants likelihood (2026-09
-# refit; 123 of 136 cells enter it), so it stays in the response-coded panel.
+# Drift by frequency, bound by condition, and zr by condition
 resp_transforms <- list(bound = exp, zr = plogis)
 resp_levels <- c("EZ-Diffusion (4par)", "Censored-Shifted Wald (crisk)", "Full DDM")
 resp_all <- bind_rows(
@@ -416,9 +371,7 @@ ggsave(here("figures", "15_cross_model_response.pdf"),
 # 5) Computational Cost Summary ------------------------------------------------
 ###############################################################################!
 
-# Wall-clock of the slowest chain, read from the cached fits with
-# rstan::get_elapsed_time(); the manuscript's setup chunk reads the same
-# quantity, so nothing here is typed by hand.
+# Wall-clock time of the slowest chain, read from the cached fits
 cost <- tibble(
   fit = c("EZ-Diffusion 3par (stim_cat)", "EZ-Diffusion 3par (freq)", "EZ-Diffusion 4par (stim_cat)",
           "EZ-Diffusion 4par (freq)", "Censored-Shifted Wald simple", "Censored-Shifted Wald crisk",

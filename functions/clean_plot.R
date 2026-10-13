@@ -1,23 +1,5 @@
-# Plotting theme and color-blind friendly palette for EAM tutorial paper
-#
-# Figure guidelines: Helvetica/Arial font, 9pt tick labels, 10pt axis
-# titles at final published size. Figures are designed for two-column width
-# (~6.875 inches). With base_size = 11, axis text at rel(0.82) ≈ 9pt and
-# axis titles at 11pt.
-#
-# Usage:
-#   source(here("functions", "clean_plot.R"))
-#
-#   # basic usage
-#   ggplot(data, aes(x, y)) + geom_point() + clean_plot()
-#
-#   # with ad-hoc overrides
-#   ggplot(data, aes(x, y)) + geom_point() +
-#     clean_plot(axis.text.y = element_blank())
-#
-#   # with color palette
-#   ggplot(data, aes(x, y, color = condition)) + geom_point() +
-#     scale_color_eam() + clean_plot()
+# Plot theme and color-blind friendly palette for the tutorial figures
+# Usage: ggplot(...) + clean_plot(); extra arguments are passed to theme()
 
 ###############################################################################!
 # Color Palette ----------------------------------------------------------------
@@ -35,7 +17,7 @@ eam_palette <- c(
   "#000000"
 )
 
-# convenience scale functions for consistent color mapping across tutorials
+# Scales that apply the palette
 scale_color_eam <- function(...) {
   scale_color_manual(values = eam_palette, ...)
 }
@@ -48,16 +30,11 @@ scale_fill_eam <- function(...) {
 # Plot Theme -------------------------------------------------------------------
 ###############################################################################!
 
-# base_size  - overall text size scaling (default 11pt, suitable for figures
-#              saved at two-column width ~6.875 inches; use 9 for one-column
-#              figures ~3.25 inches)
-# base_family - font family (default "" uses ggplot2 default sans-serif;
-#               set to "Arial" or "Helvetica" for submission)
-# ...        - additional theme() arguments passed through for ad-hoc overrides
+# base_size 11 suits figures saved 6.5 in wide; ... is passed on to theme()
 clean_plot <- function(base_size = 11, base_family = "", ...) {
   theme_bw(base_size = base_size, base_family = base_family) +
     theme(
-      # remove grid and panel border for a clean look
+      # no grid or panel border
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank(),
       panel.border     = element_blank(),
@@ -67,8 +44,7 @@ clean_plot <- function(base_size = 11, base_family = "", ...) {
       axis.ticks = element_line(color = "black", linewidth = 0.4),
       axis.text  = element_text(color = "black", size = rel(0.82)),
 
-      # legend: consistently placed below the plot across all figures;
-      # override per plot with + theme(legend.position = ...) after clean_plot()
+      # legend below the plot; override with theme() after clean_plot()
       legend.position   = "bottom",
       legend.key        = element_rect(fill = "white", color = NA),
       legend.background = element_rect(fill = "white", color = NA),
@@ -82,28 +58,6 @@ clean_plot <- function(base_size = 11, base_family = "", ...) {
       plot.subtitle = element_text(color = "grey30", hjust = 0),
       plot.margin   = margin(10, 10, 10, 10),
 
-      # pass-through overrides
       ...
     )
 }
-
-###############################################################################!
-# Figure Dimensions (reference) ------------------------------------------------
-###############################################################################!
-
-# Two-column width: 6.875 inches (17.5 cm)
-# One-column width: 3.25 inches (8.45 cm)
-#
-# Recommended ggsave settings for this project:
-#
-#   Single panel:
-#     ggsave(filename, plot, width = 6.5, height = 5, dpi = 300)
-#
-#   Two-panel (side by side via patchwork):
-#     ggsave(filename, plot, width = 6.5, height = 4, dpi = 300)
-#
-#   Multi-panel (2x2 grid):
-#     ggsave(filename, plot, width = 6.5, height = 6, dpi = 300)
-#
-# Save as PDF for vector graphics:
-#     ggsave(filename, plot, width = 6.5, height = 5, device = "pdf")
