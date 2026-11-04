@@ -1,5 +1,5 @@
-fit,cells,mean_rt,var_rt,p_upper
-"Censored-Shifted Wald (simple), accuracy-coded",136,63,92,131
-"Full DDM, accuracy-coded",136,69,121,88
-"Censored-Shifted Wald (crisk), response-coded",136,90,121,92
-"Full DDM, response-coded",136,68,121,88
+fit,cells,mean_rt,var_rt,p_upper,var_rt_below
+"Censored-Shifted Wald (simple), accuracy-coded",136,63,92,131,0
+"Full DDM, accuracy-coded",136,69,121,88,0
+"Censored-Shifted Wald (crisk), response-coded",136,90,121,92,0
+"Full DDM, response-coded",136,68,121,88,0

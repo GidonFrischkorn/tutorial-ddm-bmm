@@ -20,7 +20,7 @@ chains <- 5
 cores  <- 5
 threads <- 2
 warmup <- 1000
-iter   <- 2000
+iter   <- 4000  # 2000 left the population-level bound at bulk ESS < 400
 adapt_delta   <- 0.90
 max_treedepth <- 12
 
@@ -177,8 +177,8 @@ p_group <- ggplot(group_recovery, aes(x = level, y = estimate,
              labeller = labeller(
                parameter = c(drift = "Drift (stimulus)",
                              bound = "Bound",
-                             ndt = "NDT",
-                             zr = "Start (bias)"))) +
+                             ndt = "ndt",
+                             zr = "zr (bias)"))) +
   scale_color_manual(values = eam_palette[c(1, 2, 4)]) +
   labs(x = NULL, y = "Estimate", color = "Model", shape = "Model") +
   clean_plot()
@@ -236,7 +236,7 @@ true_subject <- bind_rows(
 )
 
 param_levels <- c("drift_A", "drift_B", "bound", "ndt", "zr_A", "zr_B")
-param_labels <- c("Drift (A)", "Drift (B)", "Bound", "NDT",
+param_labels <- c("Drift (A)", "Drift (B)", "Bound", "ndt",
                   "zr (A)", "zr (B)")
 
 subject_recovery <- subject_recovery |>

@@ -171,7 +171,7 @@ p_zr <- draws_zr |>
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5) +
   scale_fill_manual(values = eam_palette[3:4]) +
-  labs(x = expression("Rel. Starting Point ("*zeta*") - bias toward 'word'"), y = "") +
+  labs(x = expression("Relative starting point ("*zeta[r]*"), bias toward 'word'"), y = "") +
   guides(fill = "none") +
   clean_plot()
 

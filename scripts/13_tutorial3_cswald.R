@@ -164,6 +164,7 @@ p_drift <- draws_drift |>
   ggplot(aes(x = drift, y = freq, fill = freq)) +
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   scale_fill_manual(values = eam_palette[1:4]) +
+  scale_y_discrete(labels = c(very_low = "very low")) +
   labs(x = expression("Drift ("*delta*") - Censored-Shifted Wald (simple)"), y = "") +
   guides(fill = "none") +
   clean_plot()
@@ -180,7 +181,7 @@ p_zr <- draws_zr |>
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   geom_vline(xintercept = 0.5, linetype = "dashed", alpha = 0.5) +
   scale_fill_manual(values = eam_palette[3:4]) +
-  labs(x = expression("Rel. Starting Point ("*zeta*") - Censored-Shifted Wald (crisk)"), y = "") +
+  labs(x = expression("Relative starting point ("*zeta[r]*"), Censored-Shifted Wald (crisk)"), y = "") +
   guides(fill = "none") +
   clean_plot()
 

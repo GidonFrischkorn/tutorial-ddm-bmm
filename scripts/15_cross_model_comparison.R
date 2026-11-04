@@ -252,7 +252,9 @@ cell_check <- function(fit, draws) {
     summarise(cells   = n(),
               mean_rt = sum(mean_rt < mean_rt_lo | mean_rt > mean_rt_hi),
               var_rt  = sum(var_rt  < var_rt_lo  | var_rt  > var_rt_hi),
-              p_upper = sum(p_upper < p_upper_lo | p_upper > p_upper_hi))
+              p_upper = sum(p_upper < p_upper_lo | p_upper > p_upper_hi),
+              # Direction of the variance misses: observed below the interval
+              var_rt_below = sum(var_rt < var_rt_lo))
 }
 set.seed(1)
 trial_cell_checks <- imap(trial_fits, \(fit, lbl) {
@@ -313,6 +315,7 @@ p_acc_drift <- cmp_panel(filter(acc_all, parameter == "drift") |>
                            mutate(level = factor(level, levels = freq_levels)),
                          ref_drift_freq, "Drift",
                          eam_palette[c(1, 3, 4)], y_lab = "Estimate") +
+  scale_x_discrete(labels = c(very_low = "very low")) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 p_acc_bound <- cmp_panel(filter(acc_all, parameter == "bound"), ref_bound,
                          "Bound", eam_palette[c(1, 3, 4)])
@@ -352,6 +355,7 @@ p_resp_drift <- cmp_panel(filter(resp_all, parameter == "drift") |>
                             mutate(level = factor(level, levels = freq_levels)),
                           ref_drift_resp, "Drift",
                           eam_palette[c(1, 3, 4)], y_lab = "Estimate") +
+  scale_x_discrete(labels = c(very_low = "very low")) +
   geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.3) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 p_resp_bound <- cmp_panel(filter(resp_all, parameter == "bound"), ref_bound,

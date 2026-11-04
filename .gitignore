@@ -25,3 +25,7 @@ manuscript/*.ttt
 .DS_Store
 /.luarc.json
 .positai
+
+# Agent/working files (also in the global ignore; repeated here so they never travel)
+CLAUDE.md
+.claude/

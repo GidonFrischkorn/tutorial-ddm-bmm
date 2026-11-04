@@ -134,7 +134,7 @@ p_group <- ggplot(group_recovery, aes(x = level, y = estimate,
              labeller = labeller(
                parameter = c(drift = "Drift",
                               bound = "Bound",
-                              ndt = "NDT"))) +
+                              ndt = "ndt"))) +
   scale_color_manual(values = eam_palette[c(1, 3, 4)]) +
   labs(x = NULL, y = "Estimate", color = "Model", shape = "Model") +
   clean_plot()
@@ -214,7 +214,7 @@ subject_recovery <- subject_recovery |>
     model = factor(model, levels = c("EZ-Diffusion (3par)", "Censored-Shifted Wald (crisk)", "Full DDM")),
     parameter = factor(parameter,
                        levels = c("drift_easy", "drift_hard", "bound", "ndt"),
-                       labels = c("Drift (easy)", "Drift (hard)", "Bound", "NDT"))
+                       labels = c("Drift (easy)", "Drift (hard)", "Bound", "ndt"))
   )
 
 # Correlation between true and recovered values

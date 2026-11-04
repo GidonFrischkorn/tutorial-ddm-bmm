@@ -171,6 +171,7 @@ p_drift <- draws_drift |>
   ggplot(aes(x = drift, y = freq, fill = freq)) +
   stat_halfeye(.width = c(.66, .95), alpha = 0.8) +
   scale_fill_manual(values = eam_palette[1:4]) +
+  scale_y_discrete(labels = c(very_low = "very low")) +
   labs(x = expression("Drift ("*delta*") - accuracy-coded"), y = "") +
   guides(fill = "none") +
   clean_plot()

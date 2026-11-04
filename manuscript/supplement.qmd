@@ -1,0 +1,199 @@
+---
+title: "Supplementary Material S1 to Estimating Diffusion Model Parameters with the bmm R Package: Parameter Recovery on Simulated Data"
+shorttitle: "Supplement S1: Parameter Recovery"
+author:
+  - name: Gidon T. Frischkorn
+    orcid: 0000-0002-5055-9764
+    email: gidon.frischkorn@psychologie.uzh.ch
+    corresponding: true
+    affiliations:
+      - name: University of Zurich
+        department: Department of Psychology
+format:
+  apaquarto-docx:
+    toc: false
+    floatsintext: true
+  apaquarto-pdf:
+    keep-tex: false
+    floatsintext: true
+    documentmode: man
+floatsintext: true
+table-spacing: single
+output-dir: "."
+bibliography: references.bib
+execute:
+  echo: false
+  eval: true
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+pacman::p_load(here, bmm, brms, tidyverse)
+
+# Format estimate with 95% CrI
+fmt_est <- function(x, digits = 2) {
+  sprintf("%.*f [%.*f, %.*f]", digits, x["Estimate"],
+          digits, x["Q2.5"], digits, x["Q97.5"])
+}
+
+# Fits of scripts/21_appendix_parameter_recovery.R and the generating values
+fit_ezdm_3par    <- readRDS(here("output", "fit_ezdm_3par.rds"))
+fit_cswald_crisk <- readRDS(here("output", "fit_cswald_crisk.rds"))
+fit_ddm          <- readRDS(here("output", "fit_ddm.rds"))
+true_params      <- read_csv(here("data", "true_parameters.csv"),
+                              show_col_types = FALSE)
+true_params_subject <- read_csv(here("data", "true_parameters_subject.csv"),
+                                 show_col_types = FALSE)
+
+# Subject-level recovery correlations
+extract_subject_params <- function(fit, model_name, n_subjects = 50) {
+  co <- coef(fit)$id
+  bind_rows(
+    tibble(model = model_name, parameter = "drift_easy",
+           id = 1:n_subjects, recovered = co[1:n_subjects, "Estimate", "drift_conditioneasy"]),
+    tibble(model = model_name, parameter = "drift_hard",
+           id = 1:n_subjects, recovered = co[1:n_subjects, "Estimate", "drift_conditionhard"]),
+    tibble(model = model_name, parameter = "bound",
+           id = 1:n_subjects, recovered = exp(co[1:n_subjects, "Estimate", "bound_Intercept"])),
+    tibble(model = model_name, parameter = "ndt",
+           id = 1:n_subjects, recovered = exp(co[1:n_subjects, "Estimate", "ndt_Intercept"]))
+  )
+}
+
+subject_recovery <- bind_rows(
+  extract_subject_params(fit_ezdm_3par, "EZ-Diffusion 3par"),
+  extract_subject_params(fit_cswald_crisk, "Censored-Shifted Wald crisk"),
+  extract_subject_params(fit_ddm, "DDM")
+)
+
+true_subject <- bind_rows(
+  true_params_subject |> filter(condition == "easy") |> transmute(id, parameter = "drift_easy", true_value = drift_subj),
+  true_params_subject |> filter(condition == "hard") |> transmute(id, parameter = "drift_hard", true_value = drift_subj),
+  true_params_subject |> filter(condition == "easy") |> transmute(id, parameter = "bound", true_value = bound_subj),
+  true_params_subject |> filter(condition == "easy") |> transmute(id, parameter = "ndt", true_value = ndt_subj)
+)
+
+subject_recovery <- subject_recovery |>
+  left_join(true_subject, by = c("id", "parameter"))
+
+recovery_cors <- subject_recovery |>
+  group_by(model, parameter) |>
+  summarise(r = cor(true_value, recovered), .groups = "drop")
+
+recovery_r_min <- round(min(recovery_cors$r), 2)
+recovery_r_max <- round(max(recovery_cors$r), 2)
+# Correlations by approach and parameter, for the correlation table, and the
+# lowest one for the prose
+.rec_model_lbl <- c("EZ-Diffusion 3par" = "EZ-Diffusion Model (3par)",
+                    "Censored-Shifted Wald crisk" = "Censored-Shifted Wald (crisk)",
+                    "DDM" = "Full DDM")
+.rec_param_lbl <- c(drift_easy = "Drift (easy)", drift_hard = "Drift (hard)",
+                    bound = "Bound", ndt = "ndt")
+recovery_cors_lbl <- recovery_cors |>
+  mutate(model = .rec_model_lbl[model], parameter = .rec_param_lbl[parameter])
+recovery_cors_tab <- recovery_cors_lbl |>
+  mutate(r = sprintf("%.2f", r)) |>
+  tidyr::pivot_wider(names_from = parameter, values_from = r) |>
+  rename(Approach = model)
+.rmin <- recovery_cors_lbl[which.min(recovery_cors_lbl$r), ]
+recovery_r_min_model <- .rmin$model
+recovery_r_min_param <- .rmin$parameter
+stopifnot(all(recovery_cors$r >= 0.70))
+
+# Group-level coverage of the generating values. Each stopifnot()
+# line guards a sentence in the text.
+.tp  <- true_params[1, ]  # bound, ndt, and zr are constant across conditions
+.gl  <- function(fit, row, f = identity) {
+  x <- fixef(fit)[row, c("Estimate", "Q2.5", "Q97.5")]
+  setNames(f(x), names(x))
+}
+.covers <- function(v, x) v >= x[["Q2.5"]] && v <= x[["Q97.5"]]
+.rec_fits <- list(fit_ezdm_3par, fit_cswald_crisk, fit_ddm)
+.drift_true <- setNames(true_params$drift, true_params$condition)
+rec_ndt_ez  <- fmt_est(.gl(fit_ezdm_3par, "ndt_Intercept", exp), 3)
+rec_ndt_ddm <- fmt_est(.gl(fit_ddm, "ndt_Intercept", exp), 3)
+rec_crisk_bound     <- fmt_est(.gl(fit_cswald_crisk, "bound_Intercept", exp))
+rec_crisk_bound_pct <- round((1 - .gl(fit_cswald_crisk, "bound_Intercept", exp)[["Estimate"]] / .tp$bound) * 100)
+rec_crisk_zr        <- fmt_est(.gl(fit_cswald_crisk, "zr_Intercept", plogis), 3)
+stopifnot(
+  all(sapply(.rec_fits, \(f) .covers(.drift_true[["easy"]], .gl(f, "drift_conditioneasy")) &&
+                              .covers(.drift_true[["hard"]], .gl(f, "drift_conditionhard")))),
+  .covers(.tp$bound, .gl(fit_ezdm_3par, "bound_Intercept", exp)),
+  .covers(.tp$bound, .gl(fit_ddm, "bound_Intercept", exp)),
+  !.covers(.tp$bound, .gl(fit_cswald_crisk, "bound_Intercept", exp)),
+  .covers(.tp$ndt, .gl(fit_cswald_crisk, "ndt_Intercept", exp)),
+  !.covers(.tp$ndt, .gl(fit_ezdm_3par, "ndt_Intercept", exp)),
+  !.covers(.tp$ndt, .gl(fit_ddm, "ndt_Intercept", exp)),
+  !.covers(.tp$zr, .gl(fit_cswald_crisk, "zr_Intercept", plogis))
+)
+recovery_r_median <- round(median(recovery_cors$r), 2)
+```
+
+This supplement reports the parameter recovery study with an unbiased starting point that the main text refers to, and the subject-level scatter plots of the recovery study with a biased starting point reported in Part I of the main text. Data, fitted models, and the scripts that produce every figure and number are available on [OSF](https://osf.io/XXXXX/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm).
+
+# When to Assess Parameter Recovery
+
+Parameter recovery is not mandatory for every analysis, but it is informative as part of a principled Bayesian workflow [@schad2021principled] — particularly when you apply a model to a new design for the first time, when trial counts per cell are unusual or unbalanced, or when individual-level estimates will feed into correlations. Beyond validating a given design, recovery simulations can inform experimental planning: by systematically varying the number of participants or trials, you can determine what your design needs to achieve acceptable recovery for the parameters you care about. For the EZ-Diffusion Model a single recovery run costs minutes, so there is little reason not to do it; for the trial-level approaches, budget the fitting times reported in Table 1 of the main text.
+
+The study reported here, with an unbiased starting point and an easy and a hard condition, tests whether the three `bmm` DDM estimation approaches recover their generating values, and complements the extensive parameter recovery literature for DDMs [@ratcliff2008diffusion; @vanravenzwaaij2017ez; @lerche2016model].
+
+# Simulation Design
+
+We generated data from a DDM with known parameters (drift: 2.5 for easy, 1.0 for hard; bound: 1.5; ndt: 0.3; $\zeta_r$: 0.5) for 50 participants, each completing 200 trials per condition. Individual-level parameters were drawn from normal distributions around the population means (see `scripts/20_prepare_simulated_data.R` for details). We then fitted the EZ-Diffusion 3par, Censored-Shifted Wald (crisk), and full DDM to these data following the same `bmm` workflow used in the tutorials (`scripts/21_appendix_parameter_recovery.R`). We set two a-priori criteria for successful recovery: at the group level, the 95% credible interval for each parameter should contain its generating value (calibration); at the subject level, true and recovered values should correlate at $r \geq .70$, the acceptability floor used in recovery work aimed at individual-difference use [@goettmann2025recovery] and the conventional reliability benchmark [@cicchetti1994guidelines].^[A correlation is blind to systematic bias, which the scatter plots show; and with a single simulated dataset the correlations carry Monte Carlo error, so a value near the floor should not be over-read.] Of the two, the subject-level criterion is the practically more important one: absolute calibration can only be evaluated in simulations, whereas ordering individuals correctly is what applied uses of DDM parameters, as predictors, covariates, or outcomes, rely on.
+
+# Group-Level Recovery
+
+```{r}
+#| label: fig-recovery-group
+#| fig-cap: "Group-Level Parameter Recovery"
+#| apa-note: "Points indicate posterior means for each estimation approach; error bars show 95% credible intervals. Dashed lines mark the true generating values. All three approaches recover drift; the Censored-Shifted Wald (crisk) places bound below its generating value."
+#| eval: true
+#| echo: false
+knitr::include_graphics(here("figures", "21_recovery_group.pdf"))
+```
+
+All three estimation approaches recovered drift within their 95% credible intervals in both conditions (@fig-recovery-group). The EZ-Diffusion Model and the full DDM also recovered bound, and both placed ndt marginally below its generating value of 0.3 s (`r rec_ndt_ez` s and `r rec_ndt_ddm` s). The competing-risks Censored-Shifted Wald recovered ndt but placed bound `r rec_crisk_bound_pct`% below its generating value of 1.5 (`r rec_crisk_bound`) and $\zeta_r$ slightly below 0.5 (`r rec_crisk_zr`). On the lexical decision data, by contrast, its bound agreed with the full DDM's, so the two results together say that the competing-risks bound is not guaranteed to match the full DDM's.
+
+# Subject-Level Recovery
+
+Beyond group-level means, we evaluated whether the models recover individual differences by correlating true participant-level parameters with their posterior estimates.
+
+```{r}
+#| label: fig-recovery-subject
+#| fig-cap: "Subject-Level Parameter Recovery"
+#| apa-note: "Each point represents one participant's recovered posterior mean plotted against its true generating value (x-axis); vertical bars show the 95% credible interval of the individual-level posterior. High correlations indicate that the estimation approaches preserve the rank ordering of individual differences. Columns show drift (easy and hard conditions), bound, and ndt; rows show the three estimation approaches."
+#| eval: true
+#| echo: false
+knitr::include_graphics(here("figures", "21_recovery_subject.pdf"))
+```
+
+```{r}
+#| label: tbl-recovery-cors
+#| tbl-cap: "Subject-Level Recovery Correlations"
+#| apa-note: "Correlations between generating and recovered participant-level values, by estimation approach and parameter (50 participants, one simulated dataset)."
+#| eval: true
+#| echo: false
+knitr::kable(recovery_cors_tab, align = "lcccc")
+```
+
+@tbl-recovery-cors gives the subject-level correlations by approach and parameter (@fig-recovery-subject shows the scatter plots). Every correlation met the $r \geq .70$ criterion; the lowest is $r$ = `r recovery_r_min`, for `r recovery_r_min_param` in the `r recovery_r_min_model`, and the highest `r recovery_r_max`. The hierarchical structure in `bmm` therefore preserves individual differences while borrowing strength across participants, the property studies that use DDM parameters as individual-difference measures depend on; where an approach falls short of the others on one parameter, the table shows it, and a pooled range would not.
+
+Against the two a-priori criteria, the outcome is this. The subject-level criterion was met for every parameter by every approach. The group-level calibration criterion was met for drift in both conditions by all three approaches, for bound by the EZ-Diffusion Model and the full DDM but not by the competing-risks Censored-Shifted Wald, and for ndt by the competing-risks Censored-Shifted Wald but not by the EZ-Diffusion Model or the full DDM, whose intervals sat marginally below 0.3 s; the competing-risks $\zeta_r$ interval also excluded 0.5. The misses are small in size and consistent with the scale differences documented in Part III of the main text, but they are misses against the criterion as stated, and a study that needs calibrated absolute values should expect them.
+
+# Subject-Level Recovery With a Biased Starting Point
+
+The recovery study in Part I of the main text adds a second dataset, with two stimulus types and a starting point of 0.60 or 0.40 by bias condition, fitted with the four-parameter EZ-Diffusion Model, the three-parameter model, and the full DDM. @fig-bias-recovery-subject shows the subject-level scatter plots; the correlations between recovered and generating values are reported in Part I of the main text.
+
+```{r}
+#| label: fig-bias-recovery-subject
+#| fig-cap: "Subject-Level Recovery With a Biased Starting Point"
+#| apa-note: "Each point is one participant's recovered posterior mean against its generating value; vertical bars show the 95% credible interval. Columns show drift (stimulus A and B), bound, ndt, and the relative starting point (bias conditions A and B); rows show the four-parameter EZ-Diffusion Model, the three-parameter EZ-Diffusion Model, and the full DDM."
+#| eval: true
+#| echo: false
+knitr::include_graphics(here("figures", "22_bias_recovery_subject.pdf"))
+```
+
+These are single runs that might be biased by Monte Carlo error, for more systematic evaluation multiple replications would be necessary.
