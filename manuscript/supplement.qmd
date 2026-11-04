@@ -132,7 +132,7 @@ stopifnot(
 recovery_r_median <- round(median(recovery_cors$r), 2)
 ```
 
-This supplement reports the parameter recovery study with an unbiased starting point that the main text refers to, and the subject-level scatter plots of the recovery study with a biased starting point reported in Part I of the main text. Data, fitted models, and the scripts that produce every figure and number are available on [OSF](https://osf.io/XXXXX/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm).
+This supplement reports the parameter recovery study with an unbiased starting point that the main text refers to, and the subject-level scatter plots of the recovery study with a biased starting point reported in Part I of the main text. Data, fitted models, and the scripts that produce every figure and number are available on [OSF](https://osf.io/7y54v/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm).
 
 # When to Assess Parameter Recovery
 

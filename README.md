@@ -2,7 +2,7 @@
 
 Companion repository for the tutorial paper on estimating Diffusion Decision Model (DDM) parameters with the [bmm](https://popov-lab.github.io/bmm/) R package. The paper demonstrates three DDM estimation approaches, the EZ-Diffusion Model, the Censored-Shifted Wald, and full DDM likelihood estimation, on the lexical decision data of Wagenmakers et al. (2008), and makes the case for the hierarchical EZ-Diffusion Model as a primary analysis of condition effects on drift, boundary separation, non-decision time, and the relative starting point.
 
-- Manuscript, Supplementary Material, fitted models, and figures: [OSF](https://osf.io/XXXXX/)
+- Manuscript, Supplementary Material, fitted models, and figures: [OSF](https://osf.io/7y54v/)
 - Source code and data: this repository
 
 ## Repository Structure
@@ -25,7 +25,8 @@ Companion repository for the tutorial paper on estimating Diffusion Decision Mod
 │   ├── 15_cross_model_comparison.R       EZ-Diffusion frequency fits, Part III comparison figures
 │   ├── 20_prepare_simulated_data.R       Generate the two simulated datasets
 │   ├── 21_appendix_parameter_recovery.R  Supplement S1: recovery with an unbiased starting point
-│   └── 22_bias_recovery.R                Part I: recovery with a biased starting point
+│   ├── 22_bias_recovery.R                Part I: recovery with a biased starting point
+│   └── 99_upload_osf.R                   Maintainer: upload fits, figures, and PDFs to OSF
 │
 ├── data/                          Prepared lexical decision data and simulated datasets (CSV)
 ├── functions/                     Shared plotting and extraction utilities

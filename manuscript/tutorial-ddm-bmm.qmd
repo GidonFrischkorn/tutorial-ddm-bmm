@@ -12,7 +12,7 @@ author:
 author-note:
   disclosures:
     study-registration: "This study was not preregistered."
-    data-sharing: "Data, analysis code, and companion R scripts for all tutorials are available on [OSF](https://osf.io/XXXXX/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm)."
+    data-sharing: "Data, analysis code, and companion R scripts for all tutorials are available on [OSF](https://osf.io/7y54v/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm)."
     conflict-of-interest: "The author declares no conflicts of interest."
     financial-support: "This research was supported by a grant from the Swiss National Science Foundation (SNSF) awarded to Gidon T. Frischkorn (Grant No. PZ00P1_208828)."
     authorship-agreements:
@@ -1354,7 +1354,7 @@ Having worked through this tutorial, you can estimate DDM parameters from your o
 - Companion `bmm` tutorial, the Memory Measurement Model ($M^3$): @frischkorn2026m3
 - `bmm` package documentation: <https://popov-lab.github.io/bmm/>, with vignettes on the EZ-Diffusion Model (`bmm_ezdm`), the Censored-Shifted Wald (`bmm_cswald`), the full DDM (`bmm_ddm`), RT contamination (`bmm_rt_contamination`), and hypothesis testing on fitted models (`bmm_hypothesis_testing`)
 - `brms` documentation: <https://paul-buerkner.github.io/brms/>
-- OSF repository with data, code, fitted models, and the Supplementary Material: <https://osf.io/XXXXX/>
+- OSF repository with data, code, fitted models, and the Supplementary Material: <https://osf.io/7y54v/>
 - Companion scripts for all tutorials on GitHub: <https://github.com/GidonFrischkorn/tutorial-ddm-bmm>
 
 # References

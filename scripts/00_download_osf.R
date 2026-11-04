@@ -8,7 +8,7 @@ pacman::p_load(here, osfr)
 # environment (OSF_PAT), never in this file
 if (nzchar(Sys.getenv("OSF_PAT"))) osf_auth(Sys.getenv("OSF_PAT"))
 
-osf_project <- osf_retrieve_node("XXXXX")
+osf_project <- osf_retrieve_node("7y54v")
 
 dir.create(here("output"), showWarnings = FALSE)
 dir.create(here("figures"), showWarnings = FALSE)
