@@ -382,6 +382,10 @@ t2_ppc_out  <- .ppc_outside(fit_resp_ezdm)
 trial_ppc <- read_csv(here("data", "trial_level_ppc_cell_counts.csv"), show_col_types = FALSE)
 stopifnot("var_rt_below" %in% names(trial_ppc))  # direction of the variance misses (script 15)
 .tp_count <- function(lbl, col) trial_ppc[[col]][trial_ppc$fit == lbl]
+# The text says the accuracy-coded DDM predicts more variable RTs than observed:
+# most of its variance misses must lie below the interval
+stopifnot(.tp_count("Full DDM, accuracy-coded", "var_rt_below") >
+            .tp_count("Full DDM, accuracy-coded", "var_rt") / 2)
 .tp_fits <- c(simple = "Censored-Shifted Wald (simple), accuracy-coded",
               ddm_acc = "Full DDM, accuracy-coded",
               crisk = "Censored-Shifted Wald (crisk), response-coded",

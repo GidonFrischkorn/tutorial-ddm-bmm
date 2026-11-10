@@ -249,11 +249,13 @@ cell_check <- function(fit, draws) {
   obs |>
     left_join(lims, join_by(cell)) |>
     summarise(cells   = n(),
+              # Direction of the variance misses: observed below the interval.
+              # Computed before var_rt, which summarise() overwrites with a count
+              var_rt_below = sum(var_rt < var_rt_lo),
               mean_rt = sum(mean_rt < mean_rt_lo | mean_rt > mean_rt_hi),
               var_rt  = sum(var_rt  < var_rt_lo  | var_rt  > var_rt_hi),
-              p_upper = sum(p_upper < p_upper_lo | p_upper > p_upper_hi),
-              # Direction of the variance misses: observed below the interval
-              var_rt_below = sum(var_rt < var_rt_lo))
+              p_upper = sum(p_upper < p_upper_lo | p_upper > p_upper_hi)) |>
+    relocate(var_rt_below, .after = p_upper)
 }
 set.seed(1)
 trial_cell_checks <- imap(trial_fits, \(fit, lbl) {
