@@ -97,12 +97,12 @@ fit_acc_ezdm_freq <- bmm(
 
 ## 1.2) EZ-Diffusion 4par with freq (response-coded) --------------------------
 
-# Robust moments with min_trials = 3 keep cells with few minority-boundary responses
+# Robust moments at the default min_trials = 10: a boundary with fewer responses
+# has NA moments, and bmm fits that cell through its response counts alone
 data_resp_ezdm_freq <- data_response_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
-                       method = "robust",
-                       min_trials = 3),
+                       method = "robust"),
     .by = c(id, condition, freq)
   )
 
@@ -156,8 +156,7 @@ fit_resp_ezdm_freq <- bmm(
 data_resp_ezdm_freq_mix <- data_response_clean |>
   summarize(
     ezdm_summary_stats(rt, response, version = "4par",
-                       method = "mixture", distribution = "exgaussian",
-                       min_trials = 3),
+                       method = "mixture", distribution = "exgaussian"),
     .by = c(id, condition, freq)
   )
 mix_fallback <- data_resp_ezdm_freq_mix |>
