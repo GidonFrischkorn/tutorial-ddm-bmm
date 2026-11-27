@@ -196,4 +196,4 @@ The recovery study in Part I of the main text adds a second dataset, with two st
 knitr::include_graphics(here("figures", "22_bias_recovery_subject.pdf"))
 ```
 
-These are single runs that might be biased by Monte Carlo error, for more systematic evaluation multiple replications would be necessary.
+These are single runs that might be biased by Monte Carlo error; for more systematic evaluation multiple replications would be necessary.
