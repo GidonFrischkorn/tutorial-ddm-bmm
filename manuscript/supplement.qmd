@@ -132,7 +132,7 @@ stopifnot(
 recovery_r_median <- round(median(recovery_cors$r), 2)
 ```
 
-This supplement reports the parameter recovery study with an unbiased starting point that the main text refers to, and the subject-level scatter plots of the recovery study with a biased starting point reported in Part I of the main text. Data, fitted models, and the scripts that produce every figure and number are available on [OSF](https://osf.io/7y54v/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm).
+This supplement reports two things the main text refers to: the parameter recovery study with an unbiased starting point, and the subject-level scatter plots of the recovery study with a biased starting point, whose results appear in Part I of the main text. Data, fitted models, and the scripts that produce every figure and number are available on [OSF](https://osf.io/7y54v/) and [GitHub](https://github.com/GidonFrischkorn/tutorial-ddm-bmm).
 
 # When to Assess Parameter Recovery
 
@@ -179,7 +179,7 @@ knitr::include_graphics(here("figures", "21_recovery_subject.pdf"))
 knitr::kable(recovery_cors_tab, align = "lcccc")
 ```
 
-@tbl-recovery-cors gives the subject-level correlations by approach and parameter (@fig-recovery-subject shows the scatter plots). Every correlation met the $r \geq .70$ criterion; the lowest is $r$ = `r recovery_r_min`, for `r recovery_r_min_param` in the `r recovery_r_min_model`, and the highest `r recovery_r_max`. The hierarchical structure in `bmm` therefore preserves individual differences while borrowing strength across participants, the property studies that use DDM parameters as individual-difference measures depend on; where an approach falls short of the others on one parameter, the table shows it, and a pooled range would not.
+@tbl-recovery-cors gives the subject-level correlations by approach and parameter (@fig-recovery-subject shows the scatter plots). Every correlation met the $r \geq .70$ criterion; the lowest is $r$ = `r recovery_r_min`, for `r recovery_r_min_param` in the `r recovery_r_min_model`, and the highest `r recovery_r_max`. The hierarchical structure in `bmm` therefore preserves individual differences while borrowing strength across participants, the property studies that use DDM parameters as individual-difference measures depend on; a pooled range would hide where one approach falls short of the others on a single parameter, which the table shows.
 
 Against the two a-priori criteria, the outcome is this. The subject-level criterion was met for every parameter by every approach. The group-level calibration criterion was met for drift in both conditions by all three approaches, for bound by the EZ-Diffusion Model and the full DDM but not by the competing-risks Censored-Shifted Wald, and for ndt by the competing-risks Censored-Shifted Wald but not by the EZ-Diffusion Model or the full DDM, whose intervals sat marginally below 0.3 s; the competing-risks $\zeta_r$ interval also excluded 0.5. The misses are small in size and consistent with the scale differences documented in Part III of the main text, but they are misses against the criterion as stated, and a study that needs calibrated absolute values should expect them.
 
