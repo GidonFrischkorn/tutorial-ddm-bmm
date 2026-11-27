@@ -76,7 +76,7 @@ The manuscript is rendered with Quarto (`quarto render manuscript/tutorial-ddm-b
 
 ## Data
 
-The lexical decision data are `speed_acc` from the `rtdists` package (Singmann et al., 2024, version 0.11-5; GPL-3), originally reported by Wagenmakers, Ratcliff, Gomez, and McKoon (2008). The CSVs in `data/` are the prepared versions produced by `01_prepare_lexical_data.R` (contaminant probabilities and summary statistics added) and the simulated datasets produced by `20_prepare_simulated_data.R`.
+The lexical decision data are `speed_acc` from the `rtdists` package (Singmann et al., 2026, version 0.12-0; GPL-3), originally reported by Wagenmakers, Ratcliff, Gomez, and McKoon (2008). The CSVs in `data/` are the prepared versions produced by `01_prepare_lexical_data.R` (contaminant probabilities and summary statistics added) and the simulated datasets produced by `20_prepare_simulated_data.R`.
 
 ## License
 
@@ -89,5 +89,5 @@ The code in this repository is released under the MIT License (see `LICENSE`). T
 - Wagenmakers, E.-J., Ratcliff, R., Gomez, P., & McKoon, G. (2008). A diffusion model account of criterion shifts in the lexical decision task. *Journal of Memory and Language, 58*(1), 140–159.
 - Boag, R. J., et al. (2025). An expert guide to planning experimental tasks for evidence-accumulation modeling. *Advances in Methods and Practices in Psychological Science, 8*(2), 1–41.
 - Frischkorn, G. T., & Popov, V. (2025). A tutorial for estimating Bayesian hierarchical mixture models for visual working memory tasks. *Behavior Research Methods, 57*. https://doi.org/10.3758/s13428-025-02643-0
-- Singmann, H., Brown, S., Gretton, M., & Heathcote, A. (2024). rtdists: Response time distributions (R package version 0.11-5). https://CRAN.R-project.org/package=rtdists
+- Singmann, H., Brown, S., Gretton, M., Heathcote, A., & Fernandez, K. (2026). rtdists: Response time distributions (R package version 0.12-0). https://doi.org/10.32614/CRAN.package.rtdists
 - bmm package: [https://popov-lab.github.io/bmm/](https://popov-lab.github.io/bmm/)
